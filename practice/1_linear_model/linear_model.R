@@ -7,8 +7,12 @@ rm(list=ls())
 library(devtools)
 library(TMB)
 
-# need to set to same directory as the template file
-setwd(paste0("/homes/",Sys.info()['user'],"/tmb_transition/practice/1_linear_model/"))
+# need to set to same directory as the template file, also pull from git
+# Clone the git directory to your H drive and this should work for anyone
+dir <- paste0("/homes/",Sys.info()['user'],"/tmb_transition")
+setwd(paste0(dir,"/practice/1_linear_model"))
+# git pull
+system(paste0('cd ',dir,'\ngit pull origin master'))
 
 ############
 # Example 1 -- normal model
