@@ -1,0 +1,30 @@
+# things for git to ignore
+
+
+# any compiled things
+*.pdf
+*.png
+
+# TMB compiled shit
+*.o
+*.so
+
+# RStudio things
+*.Rdata
+*.RData
+*.RHistory
+*.Rhistory
+*.Rproj.user
+*.Rproj
+*.RDataTmp
+
+# todo file
+todo.md
+
+# temporary inla files
+inla.model*
+
+# cluster logs
+clusterlogs/
+job*
+
