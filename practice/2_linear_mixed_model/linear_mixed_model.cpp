@@ -18,13 +18,13 @@ Type objective_function<Type>::operator() ()
   Type jnll = 0;
 
   // Probability of data conditional on fixed and random effect values
-  for( int i=0; i<n_data; i++){
-    jnll -= dnorm( y(i), X0 + J(Factor(i)), exp(log_SD0), true );
+  for(int i=0; i<n_data; i++){
+    jnll -= dnorm(y(i), X0 + J(j(i)), exp(log_SD0), true);
   }
 
   // Probability of random coefficients
   for( int i=0; i<n_factors; i++){
-    jnll -= dnorm( J(i), Type(0.0), exp(log_SDJ), true );
+    jnll -= dnorm(J(i), Type(0.0), exp(log_SDJ), true);
   }
 
   // Reporting
