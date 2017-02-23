@@ -8,7 +8,7 @@ library(devtools)
 library(TMB)
 
 # need to set to same directory as the template file
-setwd("/homes/royburst/tmb_transition/practice/linear_model/")
+setwd(paste0("/homes/",Sys.info()['user'],"/tmb_transition/practice/1_linear_model/"))
 
 ############
 # Example 1 -- normal model
