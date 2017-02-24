@@ -16,9 +16,9 @@ Type objective_function<Type>::operator() ()
   Type nll = 0;
   int n = y.size();
 
-
+  // get absolute values of the betas
   Type absbeta = 0.0;
-  for(int i = 0; i < betas.size(); i++) absbeta += betas[i] * betas[i];
+  for(int i = 0; i < betas.size(); i++) absbeta += pow(betas(i),2);
   absbeta = sqrt(absbeta);
 
   // priors
