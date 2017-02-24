@@ -18,3 +18,8 @@ setwd(paste0(dir,"/practice/4_lasso"))
 # load the data
 data(state)
 d=data.frame(state.x77)
+
+
+# Fit in TMB
+compile("lasso.cpp")
+dyn.load(dynlib("lasso"))

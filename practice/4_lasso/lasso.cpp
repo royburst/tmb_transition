@@ -22,8 +22,8 @@ Type objective_function<Type>::operator() ()
   absbeta = sqrt(absbeta);
 
   // priors
-  nll = nll - 0.2 * v.sum(absbeta)        // 0.2 is lambda. priors for betas
-  nll = nll - log(sd^2)                // prior for sigma^2
+  nll = nll - 0.2 * v.sum(absbeta) ;       // 0.2 is lambda. priors for betas
+  nll = nll - log(sd^2);             // prior for sigma^2
 
   // Linear predictor
   vector<Type> linpred_i(n);
