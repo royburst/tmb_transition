@@ -8,13 +8,13 @@ Type objective_function<Type>::operator() ()
 
   // Parameters
  //   PARAMETER(lambda);
-  PARAMETER(log_sigma);
+  PARAMETER(log_sd);
   PARAMETER_VECTOR(betas);
 
   // Objective funcction
   Type sd = exp(log_sd);
   Type nll = 0;
-  int n = y_i.size();
+  int n = y.size();
 
 
   float absbeta = 0.0;
