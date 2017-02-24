@@ -36,3 +36,8 @@ dyn.load(dynlib("ar1_model"))
 obj  <- MakeADFun(data       = list("y"=y),
                   parameters = list("log_sd"=0, 'rho'=0),
                   DLL        = "ar1_model")
+
+opt <- nlminb(start=obj$par, objective=obj$fn, gradient=obj$gr) # will marginal gradient close to 0
+
+opt$par # estimated parameters
+print(sqrt(diag(solve(obj$he(opt$par))))) # standard errors using the hessian
