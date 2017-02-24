@@ -12,7 +12,7 @@ Type objective_function<Type>::operator() ()
   int n_data = y_i.size();
 
   // Objective funcction
-  Type nll = 0;
+  Type nll = 0.0;
 
   nll -= dnorm(y(0), 0.0, exp(log_sd), true);
   for(int i=1; i<n_data; i++){
