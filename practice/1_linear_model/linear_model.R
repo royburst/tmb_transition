@@ -88,7 +88,7 @@ obj$he(list("mean"=10, "log_sd"=log(2))) # Second order derivatives, i.e. the He
 
 # optimize
 opt <- nlminb(start=obj$par, objective=obj$fn, gradient=obj$gr) # will marginal gradient close to 0
-opt$diagnostics <- data.frame( "name"=names(obj$par), "Est"=c, "final_gradient"=as.vector(obj$gr(opt$par)))
+opt$diagnostics <- data.frame( "name"=names(obj$par), "Est"=opt$par, "final_gradient"=as.vector(obj$gr(opt$par)))
 opt$par # estimated parameters
 print(sqrt(diag(solve(obj$he(opt$par))))) # standard errors using the hessian
 sdreport(obj) # standard errors the easier way

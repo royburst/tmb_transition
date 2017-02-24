@@ -14,13 +14,13 @@ setwd(paste0(dir,"/practice/3_AR_model"))
 # Simulate data
 
 N       <- 1000 # number of observations
-rho     <- 0.9 # temporal autocorrelation
-s2      <- .1
+rho     <- 0.9  # temporal autocorrelation
+sd      <- 10
 
 # AR data
 y    <- numeric(length = N)
 y[1] <- rnorm(1,0,s2)
-for(i in 2:N) y[i] <- rnorm(1,y[i-1]*rho,sqrt(s2))
+for(i in 2:N) y[i] <- rnorm(1,y[i-1]*rho,sd)
 
 # fit in R
 arima(y,order=c(1,0,0))
