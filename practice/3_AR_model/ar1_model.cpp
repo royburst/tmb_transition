@@ -9,7 +9,7 @@ Type objective_function<Type>::operator() ()
   PARAMETER(log_sd);
   PARAMETER(rho);
 
-  int n_data = y_i.size();
+  int n_data = y.size();
 
   // Objective funcction
   Type nll = 0.0;
