@@ -22,11 +22,11 @@ Type objective_function<Type>::operator() ()
   absbeta = sqrt(absbeta);
 
   // priors
-  nll = nll - 0.2 * v.sum(absbeta) ;       // 0.2 is lambda. priors for betas
+  nll = nll - 0.2 * absbeta.sum() ;       // 0.2 is lambda. priors for betas
   nll = nll - log(pow(sd,2));             // prior for sigma^2
 
   // Linear predictor
-  vector<Type> linpred_i(n);
+  vector<Type> linpred(n);
   linpred = X*betas;
 
   // Probability of data conditional on fixed and random effect values
