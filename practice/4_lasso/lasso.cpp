@@ -17,7 +17,7 @@ Type objective_function<Type>::operator() ()
   int n = y.size();
 
 
-  float absbeta = 0.0;
+  Type absbeta = 0.0;
   for(int i = 0; i < betas.size(); i++) absbeta += betas[i] * betas[i];
   absbeta = sqrt(absbeta);
 
