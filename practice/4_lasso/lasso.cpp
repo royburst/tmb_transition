@@ -20,9 +20,10 @@ Type objective_function<Type>::operator() ()
   Type absbeta = 0.0;
   for(int i = 0; i < betas.size(); i++) absbeta += pow(betas(i),2);
   absbeta = sqrt(absbeta);
-
+  absbeta = absbeta.sum()
+  
   // priors
-  nll = nll - 0.2 * absbeta.sum() ;       // 0.2 is lambda. priors for betas
+  nll = nll - 0.2 *  absbeta;       // 0.2 is lambda. priors for betas
   nll = nll - log(pow(sd,2));             // prior for sigma^2
 
   // Linear predictor
