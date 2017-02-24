@@ -23,7 +23,7 @@ Type objective_function<Type>::operator() ()
   Type sd = exp(log_sd);
 
   REPORT(sd);
-  //ADREPORT(sd);
+  ADREPORT(sd);
 
   return nll;
 }
