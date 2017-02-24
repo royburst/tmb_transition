@@ -31,7 +31,7 @@ Type objective_function<Type>::operator() ()
 
   // Probability of data conditional on fixed and random effect values
   for(int i=0; i<n; i++){
-    nll -= dnorm(y(i), linpred, sd, true);
+    nll -= dnorm(y(i), linpred(i), sd, true);
   }
 
 
