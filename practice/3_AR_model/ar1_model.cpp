@@ -14,7 +14,7 @@ Type objective_function<Type>::operator() ()
   // Objective funcction
   Type nll = 0.0;
 
-  nll -= dnorm(y(0), 0.0, exp(log_sd), true);
+  //nll -= dnorm(y(0), 0.0, exp(log_sd), true);
   for(int i=1; i<n_data; i++){
     nll -= dnorm(y(i), rho*y[i-1], exp(log_sd), true);
   }
