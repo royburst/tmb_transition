@@ -13,12 +13,17 @@ Type objective_function<Type>::operator() ()
 
   // Objective funcction
   Type nll = 0.0;
-  Type sd = exp(log_sd);
-  
+
   //nll -= dnorm(y(0), 0.0, exp(log_sd), true);
   for(int i=1; i<n_data; i++){
     nll -= dnorm(y(i), rho*y[i-1], sd, true);
   }
+
+  // Reporting
+  Type sd = exp(log_sd);
+
+  REPORT(sd);
+  //ADREPORT(sd);
 
   return nll;
 }
