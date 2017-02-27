@@ -5,6 +5,7 @@ Type objective_function<Type>::operator() ()
   // Data
   DATA_VECTOR(y);
   DATA_MATRIX(X);
+  DATA_VECTOR(L);
 
   // Parameters
  //   PARAMETER(lambda);
@@ -21,7 +22,7 @@ Type objective_function<Type>::operator() ()
   for(int i = 0; i < betas.size(); i++) absbeta += sqrt(pow(betas(i),2));
 
   // priors
-  nll = nll + 0.2 * absbeta;              // 0.2 is lambda. priors for betas
+  nll = nll + L * absbeta;                // 0.2 is lambda. priors for betas
   nll = nll + log(pow(sd,2));             // prior for sigma^2
 
   // Linear predictor
