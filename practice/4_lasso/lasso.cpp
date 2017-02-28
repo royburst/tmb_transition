@@ -9,8 +9,8 @@ Type objective_function<Type>::operator() ()
   // Parameters
  //   PARAMETER(lambda);
   PARAMETER(log_sd);
-  PARAMETER(L);
   PARAMETER_VECTOR(betas);
+  PARAMETER(L);
 
   // Objective funcction
   Type sd = exp(log_sd);
