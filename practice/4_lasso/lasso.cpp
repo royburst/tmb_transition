@@ -16,7 +16,6 @@ Type objective_function<Type>::operator() ()
   Type sd = exp(log_sd);
   Type nll = 0;
   int n = y.size();
-  Type lambda = L;
 
   // get absolute values of the betas
   Type absbeta = 0.0;
@@ -24,8 +23,8 @@ Type objective_function<Type>::operator() ()
 
   // priors
   using namespace density;
-  nll = nll - dgamma(lambda,Type(2.0),Type(2.0), true);          // lambda prior
-  nll = nll + lambda * absbeta;             // 0.2 is lambda. priors for betas
+  nll = nll - dgamma(L,Type(2.0),Type(2.0), true);          // lambda prior
+  nll = nll + L * absbeta;             // 0.2 is lambda. priors for betas
   nll = nll + log(pow(sd,2));             // prior for sigma^2
 
   // Linear predictor
