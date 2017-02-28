@@ -22,6 +22,7 @@ Type objective_function<Type>::operator() ()
   for(int i = 0; i < betas.size(); i++) absbeta += sqrt(pow(betas(i),2));
 
   // priors
+  using namespace density;
   nll = nll + dgamma(L,2.0, 2.0t, true);          // lambda prior
   nll = nll + L * absbeta;             // 0.2 is lambda. priors for betas
   nll = nll + log(pow(sd,2));             // prior for sigma^2
