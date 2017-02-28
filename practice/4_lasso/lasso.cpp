@@ -14,7 +14,7 @@ Type objective_function<Type>::operator() ()
 
   // Objective funcction
   Type sd  = exp(log_sd);
-  Type L   = exp(log_L);
+  Type LL  = exp(log_L);
   Type nll = 0;
   int n = y.size();
 
@@ -24,9 +24,9 @@ Type objective_function<Type>::operator() ()
 
   // priors
   using namespace density;
-  nll = nll - dgamma(L,Type(2.0),Type(2.0), true);          // lambda prior
-  nll = nll + L * absbeta;             // 0.2 is lambda. priors for betas
-  nll = nll + log(pow(sd,2));             // prior for sigma^2
+  nll = nll - dgamma(LL, Type(2.0), Type(2.0), true);          // lambda prior
+  nll = nll + LL * absbeta;                                  // priors for betas
+  nll = nll + log(pow(sd,2));                               // prior for sigma^2
 
   // Linear predictor
   vector<Type> linpred(n);
