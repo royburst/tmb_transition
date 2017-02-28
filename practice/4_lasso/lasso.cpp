@@ -17,15 +17,15 @@ Type objective_function<Type>::operator() ()
   Type nll = 0;
   int n = y.size();
   Type lambda = L;
-  
+
   // get absolute values of the betas
   Type absbeta = 0.0;
   for(int i = 0; i < betas.size(); i++) absbeta += sqrt(pow(betas(i),2));
 
   // priors
   using namespace density;
-  nll = nll + runif(L,0.0, 2.0, true);          // lambda prior
-  nll = nll + L * absbeta;             // 0.2 is lambda. priors for betas
+  nll = nll + runif(lambda,0.0, 2.0, true);          // lambda prior
+  nll = nll + lambda * absbeta;             // 0.2 is lambda. priors for betas
   nll = nll + log(pow(sd,2));             // prior for sigma^2
 
   // Linear predictor
