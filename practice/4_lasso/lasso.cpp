@@ -9,21 +9,21 @@ Type objective_function<Type>::operator() ()
   // Parameters
  //   PARAMETER(lambda);
   PARAMETER(log_sd);
-  PARAMETER_VECTOR(betas);
   PARAMETER(L);
+  PARAMETER_VECTOR(betas);
 
   // Objective funcction
   Type sd = exp(log_sd);
   Type nll = 0;
   int n = y.size();
-  using namespace density;
-  nll = nll - dgamma(L,Type(2.0),Type(2.0), true);          // lambda prior
 
   // get absolute values of the betas
   Type absbeta = 0.0;
   for(int i = 0; i < betas.size(); i++) absbeta += sqrt(pow(betas(i),2));
 
   // priors
+  using namespace density;
+  nll = nll - dgamma(L,Type(2.0),Type(2.0), true);          // lambda prior
   nll = nll + L * absbeta;             // 0.2 is lambda. priors for betas
   nll = nll + log(pow(sd,2));             // prior for sigma^2
 
