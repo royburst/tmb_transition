@@ -23,7 +23,7 @@ Type objective_function<Type>::operator() ()
 
   // priors
   using namespace density;
-  nll = nll - dlnorm(L,Type(0.0),Type(1.0), true);          // lambda prior
+  nll = nll - dgamma(L,Type(2.0),Type(2.0), true);          // lambda prior
   nll = nll + L * absbeta;             // 0.2 is lambda. priors for betas
   nll = nll + log(pow(sd,2));             // prior for sigma^2
 
