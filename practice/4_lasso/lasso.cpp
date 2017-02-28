@@ -9,11 +9,12 @@ Type objective_function<Type>::operator() ()
   // Parameters
  //   PARAMETER(lambda);
   PARAMETER(log_sd);
-  PARAMETER(L);
+  PARAMETER(log_L);
   PARAMETER_VECTOR(betas);
 
   // Objective funcction
-  Type sd = exp(log_sd);
+  Type sd  = exp(log_sd);
+  Type L   = exp(log_L);
   Type nll = 0;
   int n = y.size();
 
