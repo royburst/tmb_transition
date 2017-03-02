@@ -48,7 +48,7 @@ opt$objective
 # use a Sobol design to make a matrix to sample from the posteriors
 SimpleLM <- lm(y~-1+X)
 WindowLower <- c(log_sd =log((1-0.4) * summary(SimpleLM)$sigma), log_L = log(0.01))
-WindowUpper <- c(log_sd =log((1+0.4) * summary(SimpleLM)$sigma), log_L = log(4))
+WindowUpper <- c(log_sd =log((1+0.4) * summary(SimpleLM)$sigma), log_L = log(2))
 for(i in 1:ncol(X)){
   WindowLower <- append(WindowLower,unname(summary(SimpleLM)$coef[,1] - 4 * summary(SimpleLM)$coef[,2])[i])
   WindowUpper <- append(WindowUpper,unname(summary(SimpleLM)$coef[,1] + 4 * summary(SimpleLM)$coef[,2])[i])
@@ -57,7 +57,7 @@ for(i in 1:ncol(X)){
 draws = 100000
 pd <- sobolDesign(lower = WindowLower,upper = WindowUpper, draws)
 
-# evaluate posterior
+# evaluate posterior on the sobolgrid values
 lik<-numeric(draws)
 for(d in 1:draws){
   if(d%%10000==0) message(d)
