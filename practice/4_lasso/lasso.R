@@ -39,11 +39,41 @@ obj  <- MakeADFun(data       = dat,
                   parameters = par,
                   DLL        = "lasso")
 
-# why is the gr going so high?
-opt <- nlminb( start=obj$par, objective=obj$fn, gradient=obj$gr) #, control=list(iter.max=10000)) #,trace=1) )
-
-
-# use a Sobol design to make a matrix
+# posterior mode using optimizer -- doesnt seem to converge
+opt <- nlminb( start=obj$par, objective=obj$fn, gradient=obj$gr, trace=2)
 names(opt$par) <- c('log_sd','log_Lambda',colnames(X))
 opt$par
 opt$objective
+
+# use a Sobol design to make a matrix to sample from the posteriors
+SimpleLM <- lm(y~-1+X)
+WindowLower <- c(log_sd =log((1-0.4) * summary(SimpleLM)$sigma), log_L = log(0.01))
+WindowUpper <- c(log_sd =log((1+0.4) * summary(SimpleLM)$sigma), log_L = log(4))
+for(i in 1:ncol(X)){
+  WindowLower <- append(WindowLower,unname(summary(SimpleLM)$coef[,1] - 4 * summary(SimpleLM)$coef[,2])[i])
+  WindowUpper <- append(WindowUpper,unname(summary(SimpleLM)$coef[,1] + 4 * summary(SimpleLM)$coef[,2])[i])
+  names(WindowLower)[2+i]= names(WindowUpper)[2+i]=colnames(X)[i]
+}
+draws = 100000
+pd <- sobolDesign(lower = WindowLower,upper = WindowUpper, draws)
+
+# evaluate posterior
+lik<-numeric(draws)
+for(d in 1:draws){
+  if(d%%10000==0) message(d)
+  lik[d] <- exp(-1*obj$fn(pd[d,])) # inverse because min for nll
+}
+pd[which(lik%in%max(lik)),] # max lik
+
+# sample
+samps <- 10000
+ps <- pd[sample(1:draws,size=1000,replace=T,prob=lik/sum(lik)),]
+ps$lambda <- exp(ps$log_L)
+ps$sigma  <- exp(ps$log_sd)
+ps <- ps[,-c(1,2)]
+
+# posterior summaries
+apply(ps,2,median)
+apply(ps,2,mean)
+
+pdf('lasso_posterior.pdf'); plot(ps,cex=.1); dev.off()
