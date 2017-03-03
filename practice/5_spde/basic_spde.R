@@ -22,7 +22,20 @@ source('utils.R')
 ###############################################################
 # SIMULATE AND SET UP THE DATA
 # Simulate a surface, this returns a list of useful objects like samples and truth
-simobj <- mortsim()
+simobj <- mortsim(  nu         = 2            ,  #  Matern smoothness parameter (alpha in INLA speak)
+                    betas      = c(-3,-1,1,1) ,  #  Intercept coef and covariate coef For Linear predictors
+                    scale      = 2            ,  #  Matern scale eparameter
+                    Sigma2     = (1) ^ 2      ,  #  Variance (Nugget)
+                    rho        = 0.9          ,  #  AR1 term
+                    l          = 51           ,  #  Matrix Length
+                    n_clusters = 100          ,  #  number of clusters sampled ]
+                    n_periods  = 4            ,  #  number of periods (1 = no spacetime)
+                    mean.exposure.months = 100,  #  mean exposure months per cluster
+                    extent = c(0,1,0,1)       ,  #  xmin,xmax,ymin,ymax
+                    ncovariates = 3           ,  #  how many covariates to include?
+                    seed   = NULL             ,
+                    returnall=TRUE            )
+
 
 # get samples from which to fit
 dt <- simobj[["d"]]
@@ -41,11 +54,16 @@ mesh_s <- inla.mesh.2d(
 
 nodes <- mesh_s$n # get number of mesh nodes
 spde <- inla.spde2.matern( mesh_s ) # Build SPDE object using INLA (must pass mesh$idx$loc when supplying Boundary)
+# ^ this gives us a linear reduction of \Sigma^{-1} as:
+  # \Sigma^{-1} = \kappa^4 M_0 + 2\kappa^2M_1 + M_2
+  # M_2 = M_1M_0^{-1}M_1
+  # Where the Ms are all sparse matrices stored as "dgTMatrix"
+  names(spde$param.inla)
+
 
 # pull covariate(s) at mesh knots
 covs <- raster::extract(simobj$cov.raster,cbind(mesh_s$loc[,1],mesh_s$loc[,2]))
-
-
+names(spde$param.inla)
 
 # Data to pass to TMB
 X_xp = cbind( 1, covs)
@@ -65,7 +83,7 @@ Data = list(n_i=nrow(dt),                   # Total number of observations
             G2=spde$param.inla$M2)          # SPDE sparse matrix
 
 # staring values for parameters
-Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     # FE parameter alpha
+Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     # FE parameters alphas
                   log_tau_E=1.0,                                    # log inverse of tau  (Epsilon)
                   #                  log_tau_O=1.0,                 # log inverse of tau (SP)
                   log_kappa=0.0,	                                  # Matern Range parameter
