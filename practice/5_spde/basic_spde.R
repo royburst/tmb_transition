@@ -44,3 +44,117 @@ spde <- inla.spde2.matern( mesh_s ) # Build SPDE object using INLA (must pass me
 
 # pull covariate(s) at mesh knots
 covs <- raster::extract(simobj$cov.raster,cbind(mesh_s$loc[,1],mesh_s$loc[,2]))
+
+
+
+# Data to pass to TMB
+X_xp = cbind( 1, covs)
+
+Data = list(n_i=nrow(dt),                   # Total number of observations
+            n_x=mesh_s$n,                   # Number of vertices in SPDE mesh
+            n_t=nperiod,                    # Number of periods
+            n_p=ncol(X_xp),                 # Number of columns in covariate matrix X
+            x_s=mesh_s$idx$loc-1,           # Association of each cluster with a given vertex in SPDE mesh
+            c_i=dt$deaths,                  # Number of observed deaths in the cluster (N+ in binomial likelihood)
+            Exp_i=dt$exposures,             # Number of observed exposures in the cluster (N in binomial likelihood)
+            s_i=dt$id-1,                    # no site specific effect in my model (different sampling locations in time)
+            t_i=dt$period-1,                # Sample period ( starting at zero )
+            X_xp=X_xp,                      # Covariate design matrix
+            G0=spde$param.inla$M0,          # SPDE sparse matrix
+            G1=spde$param.inla$M1,          # SPDE sparse matrix
+            G2=spde$param.inla$M2)          # SPDE sparse matrix
+
+# staring values for parameters
+Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     # FE parameter alpha
+                  log_tau_E=1.0,                                    # log inverse of tau  (Epsilon)
+                  #                  log_tau_O=1.0,                 # log inverse of tau (SP)
+                  log_kappa=0.0,	                                  # Matern Range parameter
+                  rho=0.5,                                          # Autocorrelation term
+                  epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n),     # GP
+                  sp=matrix(rnorm(mesh_s$n)))                       # RE for mesh points
+
+
+# which parameters are random
+Random = c("epsilon",'sp')
+
+##########################################################
+## FIT MODEL
+# Make object
+# Compile
+TMB::compile("basic_spde.cpp")
+dyn.load( dynlib('basic_spde') )
+
+obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, DLL='basic_spde')
+#obj$env$beSilent()
+
+# Run optimizer
+message('running optimizer')
+start_time = Sys.time()
+opt0 = nlminb(start       =    obj$par,
+              objective   =    obj$fn,
+              gradient    =    obj$gr,
+              lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
+              upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep(10,2),0.999),
+              control     =    list(eval.max=1e4, iter.max=1e4, trace=0))
+model.runtime = (Sys.time() - start_time)
+opt0[["final_gradient"]] = obj$gr( opt0$par )
+
+
+# Get standard errors
+message('getting standard errors')
+Report0 = obj$report()
+SD0 = try( sdreport(obj) )
+
+#### Prediction
+message('making predictions')
+# get back a surface (use epsilon, then interpolate somehow? )
+epsilon=SD0$par.random[names(SD0$par.random)=="epsilon"] # should be mesh_s$n*nperiods long (make sure its in the right order)
+# later  figure out how to get draws of this, for now, must be mean.. see SD0$diag.cov.random (mesh_s$n*5 long.. )
+
+# get surface to project on to
+pcoords = cbind(x=simobj$fullsamplespace$x, y=simobj$fullsamplespace$y)
+groups_periods <- simobj$fullsamplespace$t
+
+# use inla helper functions to project the spatial effect.
+A.pred <- inla.spde.make.A(
+  mesh = mesh_s,
+  loc = pcoords,
+  group = groups_periods)
+
+# values of S at each cell (long by nperiods)
+cell_s <- as.matrix(A.pred %*% epsilon)
+
+# fixed effects
+npars <- sum(names(opt0$par)=='alpha')
+
+# extract cell values  from covariates
+vals <- extract(simobj$cov.raster, pcoords[1:(nrow(simobj$fullsamplespace)/nperiod),])
+vals <- (cbind(int = 1, vals))
+
+cell_l <- vals %*% opt0$par[1:npars]
+cell_l = rep(cell_l,nperiod) # since there are no time varying components
+
+# add together linear and st components
+pred <- cell_l + cell_s
+pred <- plogis(as.vector(pred))
+
+# make them into time bins
+len = length(pred)/nperiod
+res = data.table(pcoords,
+                 pred,
+                 t=rep(1:nperiod,each=len))
+mean_ras=rasterFromXYZT(res,"pred","t")
+
+# make a latent field raster
+res2 = data.table(pcoords,
+                  epsilon=cell_s,
+                  t=rep(1:nperiod,each=len))
+names(res2)=c('x','y','epsilon','t')
+epsilon_ras=rasterFromXYZT(res2,"epsilon","t")
+
+# plot
+pdf('mean_raster_tmb.pdf',width=12,height=6)
+par(mfrow=c(1,2))
+plot(simobj$r.true.mr,main='TRUTH')
+plot(mean_ras,        main='TMB FIT')
+dev.off()
