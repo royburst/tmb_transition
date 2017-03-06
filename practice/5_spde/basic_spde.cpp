@@ -91,7 +91,7 @@ Type objective_function<Type>::operator() ()
   REPORT( SigmaE );
   // REPORT( rho );
   ADREPORT( SigmaE );
-  // REPORT( Epsilon_xt );
+  REPORT( Epsilon_xt );
 
 
   return jnll;
