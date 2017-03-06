@@ -92,6 +92,7 @@ Type objective_function<Type>::operator() ()
   // REPORT( rho );
   ADREPORT( SigmaE );
   REPORT( Epsilon_xt );
+  ADREPORT( Epsilon_xt );
 
 
   return jnll;
