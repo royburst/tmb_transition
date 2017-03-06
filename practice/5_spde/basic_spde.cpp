@@ -88,9 +88,9 @@ Type objective_function<Type>::operator() ()
   // Diagnostics
   // REPORT( jnll_comp );
   // REPORT( jnll );
-  REPORT( SigmaE );
+//   REPORT( SigmaE );
   // REPORT( rho );
-  ADREPORT( SigmaE );
+  // ADREPORT( SigmaE );
   REPORT( Epsilon_xt );
   ADREPORT( Epsilon_xt );
 
