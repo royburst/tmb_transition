@@ -23,12 +23,12 @@ source('utils.R')
 # SIMULATE AND SET UP THE DATA
 # Simulate a surface, this returns a list of useful objects like samples and truth
 simobj <- mortsim(  nu         = 2            ,  #  Matern smoothness parameter (alpha in INLA speak)
-                    betas      = c(-3,-1,1,1) ,  #  Intercept coef and covariate coef For Linear predictors
-                    scale      = 2            ,  #  Matern scale eparameter
-                    Sigma2     = (1) ^ 2      ,  #  Variance (Nugget)
+                    betas      = c(-3,-1,1.5,1) ,  #  Intercept coef and covariate coef For Linear predictors
+                    scale      = 1            ,  #  Matern scale eparameter
+                    Sigma2     = (.5) ^ 2      ,  #  Variance (Nugget)
                     rho        = 0.9          ,  #  AR1 term
                     l          = 51           ,  #  Matrix Length
-                    n_clusters = 100          ,  #  number of clusters sampled ]
+                    n_clusters = 10           ,  #  number of clusters sampled ]
                     n_periods  = 4            ,  #  number of periods (1 = no spacetime)
                     mean.exposure.months = 100,  #  mean exposure months per cluster
                     extent = c(0,1,0,1)       ,  #  xmin,xmax,ymin,ymax
@@ -112,22 +112,33 @@ opt0 = nlminb(start       =    obj$par,
               objective   =    obj$fn,
               gradient    =    obj$gr,
               lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-              upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep(10,2),0.999),
+              upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
               control     =    list(eval.max=1e4, iter.max=1e4, trace=0))
 model.runtime = (Sys.time() - start_time)
-opt0[["final_gradient"]] = obj$gr( opt0$par )
-
+# opt0[["final_gradient"]] = obj$gr( opt0$par )
+# head(summary(SD0))
 
 # Get standard errors
 message('getting standard errors')
-Report0 = obj$report()
-SD0 = try( sdreport(obj) )
+#Report0 = obj$report()
+SD0 = sdreport(obj,getReportCovariance=TRUE)
+#fe_var_covar <- SD0$cov.fixed
 
 #### Prediction
 message('making predictions')
-# get back a surface (use epsilon, then interpolate somehow? )
-epsilon=SD0$par.random[names(SD0$par.random)=="epsilon"] # should be mesh_s$n*nperiods long (make sure its in the right order)
-# later  figure out how to get draws of this, for now, must be mean.. see SD0$diag.cov.random (mesh_s$n*5 long.. )
+mu    <- c(SD0$par.fixed[names(SD0$par.fixed)=='alpha'],SD0$par.random[names(SD0$par.random)=="epsilon"])
+sigma <- SD0$cov
+
+## simulate draws
+require(MASS)
+npar   <- length(mu)
+ndraws <- 50
+draws  <- t(mvrnorm(n=ndraws,mu=mu,Sigma=sigma))
+# ^ look for a quicker way to do this..cholesky
+
+# separate out the draws
+epsilon_draws <- draws[rownames(draws)=='epsilon',]
+alpha_draws   <- draws[rownames(draws)=='alpha',]
 
 # get surface to project on to
 pcoords = cbind(x=simobj$fullsamplespace$x, y=simobj$fullsamplespace$y)
@@ -139,40 +150,50 @@ A.pred <- inla.spde.make.A(
   loc = pcoords,
   group = groups_periods)
 
-# values of S at each cell (long by nperiods)
-cell_s <- as.matrix(A.pred %*% epsilon)
 
-# fixed effects
-npars <- sum(names(opt0$par)=='alpha')
+# values of S at each cell (long by nperiods)
+cell_s <- as.matrix(A.pred %*% epsilon_draws)
 
 # extract cell values  from covariates
 vals <- extract(simobj$cov.raster, pcoords[1:(nrow(simobj$fullsamplespace)/nperiod),])
 vals <- (cbind(int = 1, vals))
 
-cell_l <- vals %*% opt0$par[1:npars]
-cell_l = rep(cell_l,nperiod) # since there are no time varying components
+cell_l <- vals %*% alpha_draws
+message('assuming no time varying covariates')
+cell_l <- do.call(rbind,list(cell_l,cell_l,cell_l,cell_l)) # since there are no time varying components
 
 # add together linear and st components
 pred <- cell_l + cell_s
-pred <- plogis(as.vector(pred))
+pred <- plogis(pred)
 
 # make them into time bins
-len = length(pred)/nperiod
-res = data.table(pcoords,
-                 pred,
-                 t=rep(1:nperiod,each=len))
-mean_ras=rasterFromXYZT(res,"pred","t")
+len = nrow(pred)/nperiod
 
-# make a latent field raster
-res2 = data.table(pcoords,
-                  epsilon=cell_s,
-                  t=rep(1:nperiod,each=len))
-names(res2)=c('x','y','epsilon','t')
-epsilon_ras=rasterFromXYZT(res2,"epsilon","t")
+# make summary plots - median, 2.5% and 97.5%
+summ <- t(apply(pred,1,quantile,probs=c(.5,.025,.975)))
+
+median_ras <- rasterFromXYZT(data.table(pcoords,p=summ[,1],t=rep(1:nperiod,each=len)),"p","t")
+lower_ras  <- rasterFromXYZT(data.table(pcoords,p=summ[,2],t=rep(1:nperiod,each=len)),"p","t")
+upper_ras  <- rasterFromXYZT(data.table(pcoords,p=summ[,3],t=rep(1:nperiod,each=len)),"p","t")
+
+draw1 <- rasterFromXYZT(data.table(pcoords,p=pred[,1],t=rep(1:nperiod,each=len)),"p","t")
+draw2 <- rasterFromXYZT(data.table(pcoords,p=pred[,2],t=rep(1:nperiod,each=len)),"p","t")
+draw3 <- rasterFromXYZT(data.table(pcoords,p=pred[,3],t=rep(1:nperiod,each=len)),"p","t")
+draw4 <- rasterFromXYZT(data.table(pcoords,p=pred[,4],t=rep(1:nperiod,each=len)),"p","t")
 
 # plot
 pdf('mean_raster_tmb.pdf',width=12,height=6)
-par(mfrow=c(1,2))
-plot(simobj$r.true.mr,main='TRUTH')
-plot(mean_ras,        main='TMB FIT')
+p<-2
+zmax <- max(c(as.vector(simobj$r.true.mr[[p]]),as.vector(upper_ras[[1]])))
+par(mfrow=c(2,4))
+plot(simobj$r.true.mr[[p]],main='TRUTH w/ sample locs',zlim=c(0,zmax))
+points(simobj$d$x[simobj$d$period==p],simobj$d$y[simobj$d$period==p])
+plot(median_ras[[p]],      main='TMB MEDIAN',zlim=c(0,zmax))
+plot(lower_ras[[p]],       main='TMB LOWER',zlim=c(0,zmax))
+plot(upper_ras[[p]],       main='TMB UPPER',zlim=c(0,zmax))
+plot(draw1[[p]],       main='TMB DRAW',zlim=c(0,zmax))
+plot(draw2[[p]],       main='TMB DRAW',zlim=c(0,zmax))
+plot(draw3[[p]],       main='TMB DRAW',zlim=c(0,zmax))
+plot(draw4[[p]],       main='TMB DRAW',zlim=c(0,zmax))
+
 dev.off()
