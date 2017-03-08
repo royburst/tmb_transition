@@ -24,11 +24,11 @@ source('utils.R')
 # Simulate a surface, this returns a list of useful objects like samples and truth
 simobj <- mortsim(  nu         = 2            ,  #  Matern smoothness parameter (alpha in INLA speak)
                     betas      = c(-3,-1,1.5,1) ,  #  Intercept coef and covariate coef For Linear predictors
-                    scale      = 1            ,  #  Matern scale eparameter
-                    Sigma2     = (.5) ^ 2      ,  #  Variance (Nugget)
+                    scale      = .25            ,  #  Matern scale eparameter
+                    Sigma2     = (.25) ^ 2      ,  #  Variance (Nugget)
                     rho        = 0.9          ,  #  AR1 term
                     l          = 51           ,  #  Matrix Length
-                    n_clusters = 10           ,  #  number of clusters sampled ]
+                    n_clusters = 15           ,  #  number of clusters sampled ]
                     n_periods  = 4            ,  #  number of periods (1 = no spacetime)
                     mean.exposure.months = 100,  #  mean exposure months per cluster
                     extent = c(0,1,0,1)       ,  #  xmin,xmax,ymin,ymax
@@ -183,9 +183,9 @@ draw4 <- rasterFromXYZT(data.table(pcoords,p=pred[,4],t=rep(1:nperiod,each=len))
 
 # plot
 pdf('mean_raster_tmb.pdf',width=12,height=6)
-p<-2
+p<-4
 zmax <- max(c(as.vector(simobj$r.true.mr[[p]]),as.vector(upper_ras[[1]])))
-par(mfrow=c(2,4))
+par(mfrow=c(3,4))
 plot(simobj$r.true.mr[[p]],main='TRUTH w/ sample locs',zlim=c(0,zmax))
 points(simobj$d$x[simobj$d$period==p],simobj$d$y[simobj$d$period==p])
 plot(median_ras[[p]],      main='TMB MEDIAN',zlim=c(0,zmax))
@@ -195,5 +195,10 @@ plot(draw1[[p]],       main='TMB DRAW',zlim=c(0,zmax))
 plot(draw2[[p]],       main='TMB DRAW',zlim=c(0,zmax))
 plot(draw3[[p]],       main='TMB DRAW',zlim=c(0,zmax))
 plot(draw4[[p]],       main='TMB DRAW',zlim=c(0,zmax))
+
+plot(simobj$template[[p]],       main='BLANK')
+plot(simobj$cov.raster[[1]],       main='COV 1')
+plot(simobj$cov.raster[[2]],       main='COV 2')
+plot(simobj$cov.raster[[3]],       main='COV 3')
 
 dev.off()
