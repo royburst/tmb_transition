@@ -246,6 +246,7 @@ res_fit <- inla(formula,
   len = nrow(pred_inla)/nperiod
 
 
+
 ###########################################################
 ## Summarize draws and compare
   # make summary plots - median, 2.5% and 97.5%
@@ -255,7 +256,39 @@ res_fit <- inla(formula,
 
   # get error and SD
   truth <- qlogis(as.vector(simobj$r.true.mr))
-  e_tmb <- summ_tmb[,1]-truth
 
-  # get error and SD
+
+  e_tmb  <- summ_tmb[,1]-truth
   e_inla <- pred_inla[,1]-truth
+
+
+  m_tmb_r  <- rasterFromXYZT(data.table(pcoords,p=summ_tmb[,1], t=rep(1:nperiod,each=len)),"p","t")
+  m_inla_r <- rasterFromXYZT(data.table(pcoords,p=summ_inla[,1],t=rep(1:nperiod,each=len)),"p","t")
+  e_tmb_r  <- rasterFromXYZT(data.table(pcoords,p=e_tmb, t=rep(1:nperiod,each=len)),"p","t")
+  e_inla_r <- rasterFromXYZT(data.table(pcoords,p=e_inla,t=rep(1:nperiod,each=len)),"p","t")
+  sd_tmb_r  <- rasterFromXYZT(data.table(pcoords,p=summ_tmb[,2], t=rep(1:nperiod,each=len)),"p","t")
+  sd_inla_r <- rasterFromXYZT(data.table(pcoords,p=summ_inla[,2],t=rep(1:nperiod,each=len)),"p","t")
+
+  emn <- min(c(e_inla,e_tmb))
+  emx <- max(c(e_inla,e_tmb))
+  smn <- min(c(summ_inla[,2],summ_tmb[,2]))
+  smx <- max(c(summ_inla[,2],summ_tmb[,2]))
+  mmn <- min(c(summ_inla[,1],summ_tmb[,1]))
+  mmx <- max(c(summ_inla[,1],summ_tmb[,1]))
+
+  # plot
+  pdf('mean_error_tmb_inla.pdf',height=12,width=6)
+
+  par(mfrow=c(4,2))
+
+  plot(simobj$r.true.mr[[1]],main='TRUTH')
+  points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
+  plot(simobj$r.true.mr[[1]],main='',zlim=c(0,0))
+  plot(m_tmb_r[[1]],main='MEDIAN TMB',zlim=c(mmn,mmx))
+  plot(m_inla_r[[1]],main='MEDIAN INLA',zlim=c(mmn,mmx))
+  plot(e_tmb_r[[1]],main='TMB ERROR',zlim=c(emn,emx))
+  plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx))
+  plot(sd_tmb_r[[1]],main='TMB SD',zlim=c(smn,smx))
+  plot(sd_inla_r[[1]],main='INLA SD',zlim=c(smn,smx))
+
+  dev.off()
