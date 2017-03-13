@@ -28,9 +28,9 @@ simobj <- mortsim(  nu         = 2            ,  #  Matern smoothness parameter 
                     Sigma2     = (.25) ^ 2      ,  #  Variance (Nugget)
                     rho        = 0.9          ,  #  AR1 term
                     l          = 51           ,  #  Matrix Length
-                    n_clusters = 15           ,  #  number of clusters sampled ]
+                    n_clusters = 50           ,  #  number of clusters sampled ]
                     n_periods  = 4            ,  #  number of periods (1 = no spacetime)
-                    mean.exposure.months = 100,  #  mean exposure months per cluster
+                    mean.exposure.months = 10,  #  mean exposure months per cluster
                     extent = c(0,1,0,1)       ,  #  xmin,xmax,ymin,ymax
                     ncovariates = 3           ,  #  how many covariates to include?
                     seed   = NULL             ,
@@ -93,7 +93,7 @@ Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     # FE paramet
 
 
 # which parameters are random
-Random = c("epsilon",'sp')
+Random = c("epsilon",'sp') # ,'log_tau_E','log_kappa','rho')
 
 ##########################################################
 ## FIT MODEL
@@ -111,8 +111,6 @@ start_time = Sys.time()
 opt0 = nlminb(start       =    obj$par,
               objective   =    obj$fn,
               gradient    =    obj$gr,
-              lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-              upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
               control     =    list(eval.max=1e4, iter.max=1e4, trace=0))
 model.runtime = (Sys.time() - start_time)
 # opt0[["final_gradient"]] = obj$gr( opt0$par )
@@ -273,22 +271,28 @@ res_fit <- inla(formula,
   emx <- max(c(e_inla,e_tmb))
   smn <- min(c(summ_inla[,2],summ_tmb[,2]))
   smx <- max(c(summ_inla[,2],summ_tmb[,2]))
-  mmn <- min(c(summ_inla[,1],summ_tmb[,1]))
-  mmx <- max(c(summ_inla[,1],summ_tmb[,1]))
+  mmn <- min(c(summ_inla[,1],summ_tmb[,1],truth))
+  mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
 
   # plot
   pdf('mean_error_tmb_inla.pdf',height=12,width=6)
 
   par(mfrow=c(4,2))
 
-  plot(simobj$r.true.mr[[1]],main='TRUTH')
+  truthr<- simobj$r.true.mr
+  values(truthr) <- truth
+
+  plot(truthr[[1]],main='TRUTH',zlim=c(mmn,mmx))
   points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
-  plot(simobj$r.true.mr[[1]],main='',zlim=c(0,0))
+  #xy <- pcoords[1:len,]
+  plot(as.vector(sd_tmb_r[[1]]),as.vector(sd_inla_r[[1]]))
   plot(m_tmb_r[[1]],main='MEDIAN TMB',zlim=c(mmn,mmx))
   plot(m_inla_r[[1]],main='MEDIAN INLA',zlim=c(mmn,mmx))
   plot(e_tmb_r[[1]],main='TMB ERROR',zlim=c(emn,emx))
   plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx))
   plot(sd_tmb_r[[1]],main='TMB SD',zlim=c(smn,smx))
+  points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
   plot(sd_inla_r[[1]],main='INLA SD',zlim=c(smn,smx))
+  points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 
   dev.off()

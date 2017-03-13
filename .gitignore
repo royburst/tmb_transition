@@ -27,4 +27,3 @@ inla.model*
 # cluster logs
 clusterlogs/
 job*
-
