@@ -42,9 +42,8 @@ Type objective_function<Type>::operator() ()
   // objective function -- joint negative log-likelihood
   using namespace density;
   Type jnll = 0;
-  vector<Type> jnll_comp(3);
+  vector<Type> jnll_comp(4);
   jnll_comp.setZero();
-
 
   // Spatial parameters
   Type kappa2 = exp(2.0*log_kappa);
@@ -59,6 +58,8 @@ Type objective_function<Type>::operator() ()
   vector<Type> linear_x(n_x);
   matrix<Type> Epsilon_xt(n_x, n_t);
 
+  // Priors
+  jnll_comp(4) -= dnorm(log_tau_E, 0, 1, true) // N(0,1) prior for log_tau
 
   // Probability of Gaussian-Markov random fields (GMRFs)
   jnll_comp(0) += GMRF(Q)(sp);
@@ -71,7 +72,6 @@ Type objective_function<Type>::operator() ()
       Epsilon_xt(x,t) = epsilon(x,t) / exp(log_tau_E);
     }
   }
-
 
   // Likelihood contribution from observations
   linear_x = X_xp * alpha.matrix();
