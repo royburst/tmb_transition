@@ -1,5 +1,6 @@
 
 rm(list=ls())
+gc()
 options(scipen=999)
 .libPaths('/home/j/temp/geospatial/packages')
 
@@ -108,18 +109,45 @@ obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, 
 ## Run optimizer
 message('running TMB optimizer')
 start_time = Sys.time()
-opt0 = nlminb(start       =    obj$par,
-              objective   =    obj$fn,
-              gradient    =    obj$gr,
-              lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-              upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
-              control     =    list(eval.max=1e4, iter.max=1e4, trace=0))
+opt0 <- do.call("nlminb",list(start       =    obj$par,
+                        objective   =    obj$fn,
+                        gradient    =    obj$gr,
+                        lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
+                        upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
+                        control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))
+
 model.runtime = (Sys.time() - start_time)
 message(sprintf("TMB took %s minutes to run", model.runtime))
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
 ## head(summary(SD0))
 
-## Get standard errors
+
+# try benchmarking
+if(T==F){
+  ben <- benchmark(obj, n=1, cores=c(1,5,10,20,30,40), expr=expression(do.call("nlminb",list(start       =    obj$par,
+                          objective   =    obj$fn,
+                          gradient    =    obj$gr,
+                          lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
+                          upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
+                          control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))))
+  png( file="Benchmark.png", width=6, height=6, res=200, units="in")
+    plot(ben)
+  dev.off()
+
+  ## TEST SOME PARALLELIZATION
+  library(parallel)
+  openmp(1)
+  mclapply(1:10,function(x)do.call("nlminb",list(start       =    obj$par,
+                                                  objective   =    obj$fn,
+                                                  gradient    =    obj$gr,
+                                                  lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
+                                                  upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
+                                                  control     =    list(eval.max=1e4, iter.max=1e4, trace=0))))
+
+}
+
+
+# Get standard errors
 message('getting standard errors')
 ## Report0 = obj$report()
 SD0 = sdreport(obj,getReportCovariance=TRUE)
