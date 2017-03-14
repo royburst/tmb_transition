@@ -104,7 +104,7 @@ TMB::compile("basic_spde.cpp")
 dyn.load( dynlib('basic_spde') )
 
 #library(parallel)
-#openmp(10)
+openmp(1)
 obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, DLL='basic_spde')
                                         #obj$env$beSilent()
 
@@ -124,7 +124,7 @@ proc.time() - ptm
 
 # try benchmarking
 if(T==F){
-  ben <- benchmark(obj, n=1, cores=1:10, expr=expression(do.call("nlminb",list(start       =    obj$par,
+  ben <- benchmark(obj, n=1, cores=seq(1,12,3), expr=expression(do.call("nlminb",list(start       =    obj$par,
                           objective   =    obj$fn,
                           gradient    =    obj$gr,
                           lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
