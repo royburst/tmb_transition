@@ -41,10 +41,10 @@ Type objective_function<Type>::operator() ()
 
   // objective function -- joint negative log-likelihood
   using namespace density;
-//  Type jnll = 0;
+  Type jnll = 0;
 //  vector<Type> jnll_comp(3);
 //  jnll_comp.setZero();
-  parallel_accumulator<Type> jnll(this);
+//  parallel_accumulator<Type> jnll(this);
 
   // Spatial parameters
   Type kappa2 = exp(2.0*log_kappa);
