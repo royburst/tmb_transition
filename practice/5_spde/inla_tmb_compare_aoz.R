@@ -24,14 +24,14 @@ source('utils.R')
 ## Simulate a surface, this returns a list of useful objects like samples and truth
 n.clust   <- 250
 n.expMths <- 1000
-simobj <- mortsim(  nu         = 2            ,  ##  Matern smoothness parameter (alpha in INLA speak)
+simobj <- mortsim(nu         = 2            ,  ##  Matern smoothness parameter (alpha in INLA speak)
                   betas      = c(-3,-1,1.5,1) ,  ##  Intercept coef and covariate coef For Linear predictors
                   scale      = .25            ,  ##  Matern scale eparameter
                   Sigma2     = (.25) ^ 2      ,  ##  Variance (Nugget)
                   rho        = 0.9          ,  ##  AR1 term
                   l          = 51           ,  ##  Matrix Length
                   n_clusters = n.clust          ,  ##  number of clusters sampled ]
-                  n_periods  = 4, ##  number of periods (1 = no spacetime)
+                  n_periods  = 1, ##  number of periods (1 = no spacetime)
                   mean.exposure.months = n.expMths,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)       ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 3           ,  ##  how many covariates to include?
@@ -300,6 +300,7 @@ values(truthr) <- truth
 ## 1
 plot(truthr[[1]],main='TRUTH',zlim=c(mmn,mmx))
 points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
+
 ## 2
 plot(as.vector(sd_tmb_r[[1]]),as.vector(sd_inla_r[[1]]), col = rainbow(11)[cut(pcoords[, 1], breaks = 10)], main = "Color by X")
 legend("bottomright", legend = unique(cut(pcoords[, 1], breaks = 10)), col = rainbow(11), pch = 16)
@@ -315,12 +316,13 @@ cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "
 brks <- c(seq(min(values(m_diff_r)), 0, length = 15), 0, seq(0, max(values(m_diff_r)),length = 15))[-c(15, 16)]
 plot(m_diff_r[[1]],main='MEDIAN DIFFERENCE', col = cls, breaks = brks)
 ## 7
+error.values <- range(c(values(e_tmb_r), values(e_inla_r)))
 cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
-brks <- c(seq(min(values(e_tmb_r)), 0, length = 15), 0, seq(0, max(values(e_tmb_r)),length = 15))[-c(15, 16)]
+brks <- c(seq(min(error.values), 0, length = 15), 0, seq(0, max(error.values),length = 15))[-c(15, 16)]
 plot(e_tmb_r[[1]],main='TMB ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
 ## 8
 cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
-brks <- c(seq(min(values(e_inla_r)), 0, length = 15), 0, seq(0, max(values(e_inla_r)),length = 15))[-c(15, 16)]
+brks <- c(seq(min(error.values), 0, length = 15), 0, seq(0, max(error.values),length = 15))[-c(15, 16)]
 plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
 ## 9
 plot.new()
