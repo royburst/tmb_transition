@@ -45,6 +45,7 @@ Type objective_function<Type>::operator() ()
 //  vector<Type> jnll_comp(3);
 //  jnll_comp.setZero();
 //  parallel_accumulator<Type> jnll(this);
+    max_parallel_regions = omp_get_max_threads();
 
 
   // Spatial parameters
