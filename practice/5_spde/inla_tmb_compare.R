@@ -104,7 +104,7 @@ TMB::compile("basic_spde.cpp")
 dyn.load( dynlib('basic_spde') )
 
 #library(parallel)
-openmp(1)
+openmp(0) # any nyumber other than 1 does not converge or speed up.
 obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, DLL='basic_spde')
                                         #obj$env$beSilent()
 

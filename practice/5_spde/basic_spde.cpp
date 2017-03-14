@@ -1,5 +1,7 @@
 // Space time
 #include <TMB.hpp>
+#include <Eigen/Sparse>
+#include <vector>
 // Function for detecting NAs
 template<class Type>
 bool isNA(Type x){
