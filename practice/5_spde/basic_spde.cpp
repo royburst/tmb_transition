@@ -74,7 +74,7 @@ Type objective_function<Type>::operator() ()
 
   // Probability of Gaussian-Markov random fields (GMRFs)
 //   jnll += GMRF(Q)(sp);
-   jnll_comp(0) += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
+   jnll_comp[0] += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
 
 
 
@@ -91,7 +91,7 @@ Type objective_function<Type>::operator() ()
   for (int i=0; i<n_i; i++){
     mrprob(i) = linear_x(x_s(s_i(i))) + Epsilon_xt(x_s(s_i(i)),t_i(i));
     if( !isNA(c_i(i)) ){
-       PARALLEL_REGION jnll_comp(1) -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
+       PARALLEL_REGION jnll_comp[1] -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
     }
   }
   jnll = jnll_comp.sum();
