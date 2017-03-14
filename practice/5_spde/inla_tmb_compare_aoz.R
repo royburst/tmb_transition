@@ -22,15 +22,17 @@ source('utils.R')
 ###############################################################
 ## SIMULATE AND SET UP THE DATA
 ## Simulate a surface, this returns a list of useful objects like samples and truth
+n.clust   <- 250
+n.expMths <- 1000
 simobj <- mortsim(  nu         = 2            ,  ##  Matern smoothness parameter (alpha in INLA speak)
                   betas      = c(-3,-1,1.5,1) ,  ##  Intercept coef and covariate coef For Linear predictors
                   scale      = .25            ,  ##  Matern scale eparameter
                   Sigma2     = (.25) ^ 2      ,  ##  Variance (Nugget)
                   rho        = 0.9          ,  ##  AR1 term
                   l          = 51           ,  ##  Matrix Length
-                  n_clusters = 250          ,  ##  number of clusters sampled ]
-                  n_periods  = 4            ,  ##  number of periods (1 = no spacetime)
-                  mean.exposure.months = 1000,  ##  mean exposure months per cluster
+                  n_clusters = n.clust          ,  ##  number of clusters sampled ]
+                  n_periods  = 4, ##  number of periods (1 = no spacetime)
+                  mean.exposure.months = n.expMths,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)       ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 3           ,  ##  how many covariates to include?
                   seed   = NULL             ,
@@ -285,7 +287,7 @@ mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
 
 ## plot
 require(grDevices)
-pdf('mean_error_tmb_inla_tkr_priors_250_clusts_wo_priors_no_GMRF_sp.pdf',height=20,width=16)
+pdf(sprintf('mean_error_tmb_inla_%i_clusts_%iexpMths_wo_priors.pdf', n.clust, n.expMths), height=20,width=16)
 
 par(mfrow=c(4,3),
     mar = c(3, 3, 3, 9))
