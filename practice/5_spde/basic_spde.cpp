@@ -36,7 +36,7 @@ Type objective_function<Type>::operator() ()
 
   // Random effects
   PARAMETER_ARRAY(epsilon);
-  PARAMETER_ARRAY(sp);
+//  PARAMETER_ARRAY(sp);
 
 
   // objective function -- joint negative log-likelihood
@@ -71,7 +71,7 @@ Type objective_function<Type>::operator() ()
 
 
   // Probability of Gaussian-Markov random fields (GMRFs)
-   jnll += GMRF(Q)(sp);
+//   jnll += GMRF(Q)(sp);
    jnll += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
 
 
