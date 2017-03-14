@@ -13,7 +13,7 @@ Type objective_function<Type>::operator() ()
 
   // Objective funcction
   Type sd = exp(log_sd);
-  Type jnll = 0;
+  parallel_accumulator<Type> jnll(this);
   int n_data = y_i.size();
 
   // Linear predictor
