@@ -60,9 +60,9 @@ Type objective_function<Type>::operator() ()
   matrix<Type> Epsilon_xt(n_x, n_t);
 
   // Priors
-  jnll_comp(3) -= dnorm(log_tau_E, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_tau
-  jnll_comp(3) -= dnorm(log_kappa, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_kappa
-  jnll_comp(3) -= dnorm(rho_trans, Type(0.0), Type(2.582), true); // N(0, sqrt(1/.15) prior on log((1+rho)/(1-rho))
+  // jnll_comp(3) -= dnorm(log_tau_E, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_tau
+  // jnll_comp(3) -= dnorm(log_kappa, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_kappa
+  // jnll_comp(3) -= dnorm(rho_trans, Type(0.0), Type(2.582), true); // N(0, sqrt(1/.15) prior on log((1+rho)/(1-rho))
 
   // Probability of Gaussian-Markov random fields (GMRFs)
   jnll_comp(0) += GMRF(Q)(sp);
