@@ -25,9 +25,9 @@ opt <- do.call("optim",obj)
 #plot(ben)
 
 # Parallel
-ben <- benchmark(obj, n=1000, cores=1:4, expr=expression(do.call("optim",obj)))
+ben <- benchmark(obj, n=1, cores=1:30, expr=expression(do.call("optim",obj)))
 png( file="Benchmark.png", width=6, height=6, res=200, units="in")
-  plot(ben)
+  plot(ben,ylim=c(0,30))
 dev.off()
 
 ##########################

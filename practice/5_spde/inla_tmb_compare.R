@@ -90,41 +90,41 @@ Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parame
                   log_kappa=0.0,	                            ## Matern Range parameter
                   rho=0.5,                                          ## Autocorrelation term
                   epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n),     ## GP
-                  sp=matrix(rnorm(mesh_s$n)))                       ## RE for mesh points
+                 sp=matrix(rnorm(mesh_s$n)))                       ## RE for mesh points
 
 
 ## which parameters are random
-Random = c("epsilon",'sp') ## ,'log_tau_E','log_kappa','rho')
+Random = c("epsilon","sp") ## 'sp','log_tau_E','log_kappa','rho')
 
 ##########################################################
 ### FIT MODEL
 ## Make object
 ## Compile
-TMB::compile("basic_spde_aoz.cpp")
-dyn.load( dynlib('basic_spde_aoz') )
+TMB::compile("basic_spde.cpp")
+dyn.load( dynlib('basic_spde') )
 
+#library(parallel)
+openmp(10)
 obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, DLL='basic_spde')
                                         #obj$env$beSilent()
 
 ## Run optimizer
 message('running TMB optimizer')
-start_time = Sys.time()
+ptm <- proc.time()
 opt0 <- do.call("nlminb",list(start       =    obj$par,
                         objective   =    obj$fn,
                         gradient    =    obj$gr,
                         lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
                         upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
-                        control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))
-
-model.runtime = (Sys.time() - start_time)
-message(sprintf("TMB took %s minutes to run", model.runtime))
+                        control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
+proc.time() - ptm
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
 ## head(summary(SD0))
 
 
 # try benchmarking
 if(T==F){
-  ben <- benchmark(obj, n=1, cores=c(1,5,10,20,30,40), expr=expression(do.call("nlminb",list(start       =    obj$par,
+  ben <- benchmark(obj, n=1, cores=1:10, expr=expression(do.call("nlminb",list(start       =    obj$par,
                           objective   =    obj$fn,
                           gradient    =    obj$gr,
                           lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
@@ -133,17 +133,6 @@ if(T==F){
   png( file="Benchmark.png", width=6, height=6, res=200, units="in")
     plot(ben)
   dev.off()
-
-  ## TEST SOME PARALLELIZATION
-  library(parallel)
-  openmp(1)
-  mclapply(1:10,function(x)do.call("nlminb",list(start       =    obj$par,
-                                                  objective   =    obj$fn,
-                                                  gradient    =    obj$gr,
-                                                  lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-                                                  upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
-                                                  control     =    list(eval.max=1e4, iter.max=1e4, trace=0))))
-
 }
 
 
