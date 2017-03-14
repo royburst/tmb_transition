@@ -39,7 +39,7 @@ simobj <- mortsim(nu         = 2            ,  ##  Matern smoothness parameter (
                   seed   = NULL             ,
                   returnall=TRUE            )
 
-message(sprintf("Simulated data with n.clusts=%i, n.expMths=%i, and n.periods=%i", n.clust, n.expMths, n.periods))
+print(sprintf("Simulated data with n.clusts=%i, n.expMths=%i, and n.periods=%i", n.clust, n.expMths, n.periods))
 
 
 ## get samples from which to fit
@@ -111,7 +111,7 @@ obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, 
                                         #obj$env$beSilent()
 
 ## Run optimizer
-message('running TMB optimizer')
+print('running TMB optimizer')
 start_time = Sys.time()
 opt0 = nlminb(start       =    obj$par,
               objective   =    obj$fn,
@@ -120,18 +120,18 @@ opt0 = nlminb(start       =    obj$par,
               upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
               control     =    list(eval.max=1e4, iter.max=1e4, trace=0))
 model.runtime = (Sys.time() - start_time)
-message(sprintf("TMB took %s minutes to run", model.runtime))
+print(sprintf("TMB took %s %s to run", model.runtime, attributes(model.runtime)$units))
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
 ## head(summary(SD0))
 
 ## Get standard errors
-message('getting standard errors')
+print('getting standard errors')
 ## Report0 = obj$report()
 SD0 = sdreport(obj,getReportCovariance=TRUE)
 ## fe_var_covar <- SD0$cov.fixed
 
 ##### Prediction
-message('making predictions')
+print('making predictions')
 mu    <- c(SD0$par.fixed[names(SD0$par.fixed)=='alpha'],SD0$par.random[names(SD0$par.random)=="epsilon"])
 sigma <- SD0$cov
 
@@ -165,7 +165,7 @@ vals <- extract(simobj$cov.raster, pcoords[1:(nrow(simobj$fullsamplespace)/nperi
 vals <- (cbind(int = 1, vals))
 
 cell_l <- vals %*% alpha_draws
-message('assuming no time varying covariates')
+print('assuming no time varying covariates')
 cell_l <- do.call(rbind,list(cell_l,cell_l,cell_l,cell_l)) ## since there are no time varying components
 
 ## add together linear and st components
@@ -217,7 +217,7 @@ res_fit <- inla(formula,
                 Ntrials = dt$exposures,
                 verbose = TRUE,
                 keep = TRUE)
-message(sprintf("INLA took %f minutes to complete", res_fit$cpu.used[4] / 60))
+print(sprintf("INLA took %f minutes to complete", res_fit$cpu.used[4] / 60))
 
 draws <- inla.posterior.sample(ndraws, res_fit)
 
@@ -257,7 +257,7 @@ len = nrow(pred_inla)/nperiod
 
 ###########################################################
 ### Summarize draws and compare
-message("summarizing draws")
+print("summarizing draws")
 ## make summary plots - median, 2.5% and 97.5%
 summ_inla <- cbind(median=(apply(pred_inla,1,median)),sd=(apply(pred_inla,1,sd)))
 ## make summary plots - median, 2.5% and 97.5%
@@ -290,7 +290,7 @@ mmn <- min(c(summ_inla[,1],summ_tmb[,1],truth))
 mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
 
 ## plot
-message('making plots')
+print('making plots')
 require(grDevices)
 pdf(sprintf('mean_error_tmb_inla_%i_clusts_%iexpMths_wo_priors.pdf', n.clust, n.expMths), height=20,width=16)
 
@@ -339,5 +339,6 @@ points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
 brks <- c(seq(min(values(sd_diff_r)), 0, length = 15), 0, seq(0, max(values(sd_diff_r)),length = 15))[-c(15, 16)]
 plot(sd_diff_r[[1]],main='SD DIFFERENCE', col = cls, breaks = brks)
+points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 
 dev.off()
