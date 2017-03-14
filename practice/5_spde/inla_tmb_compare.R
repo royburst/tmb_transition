@@ -121,6 +121,31 @@ model.runtime = (Sys.time() - start_time)
 # head(summary(SD0))
 
 
+# try benchmarking
+if(T==F){
+  ben <- benchmark(obj, n=1, cores=c(1,5,10,20,30,40), expr=expression(do.call("nlminb",list(start       =    obj$par,
+                          objective   =    obj$fn,
+                          gradient    =    obj$gr,
+                          lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
+                          upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
+                          control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))))
+  png( file="Benchmark.png", width=6, height=6, res=200, units="in")
+    plot(ben)
+  dev.off()
+
+  ## TEST SOME PARALLELIZATION
+  library(parallel)
+  openmp(1)
+  mclapply(1:10,function(x)do.call("nlminb",list(start       =    obj$par,
+                                                  objective   =    obj$fn,
+                                                  gradient    =    obj$gr,
+                                                  lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
+                                                  upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
+                                                  control     =    list(eval.max=1e4, iter.max=1e4, trace=0))))
+
+}
+
+
 # Get standard errors
 message('getting standard errors')
 #Report0 = obj$report()
