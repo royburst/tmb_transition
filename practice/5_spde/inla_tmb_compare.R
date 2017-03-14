@@ -89,12 +89,12 @@ Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parame
                   ##                  log_tau_O=1.0,                ## log inverse of tau (SP)
                   log_kappa=0.0,	                            ## Matern Range parameter
                   rho=0.5,                                          ## Autocorrelation term
-                  epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n),     ## GP
-                 sp=matrix(rnorm(mesh_s$n)))                       ## RE for mesh points
+                  epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n)) #,     ## GP
+              #   sp=matrix(rnorm(mesh_s$n)))                       ## RE for mesh points
 
 
 ## which parameters are random
-Random = c("epsilon","sp") ## 'sp','log_tau_E','log_kappa','rho')
+Random = c("epsilon") #,"sp") ## 'sp','log_tau_E','log_kappa','rho')
 
 ##########################################################
 ### FIT MODEL
@@ -104,7 +104,7 @@ TMB::compile("basic_spde.cpp")
 dyn.load( dynlib('basic_spde') )
 
 #library(parallel)
-openmp(10)
+#openmp(10)
 obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, DLL='basic_spde')
                                         #obj$env$beSilent()
 

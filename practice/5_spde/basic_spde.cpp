@@ -45,7 +45,7 @@ Type objective_function<Type>::operator() ()
 //  vector<Type> jnll_comp(3);
 //  jnll_comp.setZero();
 //    parallel_accumulator<Type> jnll(this);
-//    max_parallel_regions = omp_get_max_threads();
+    max_parallel_regions = omp_get_max_threads();
 
 
   // Spatial parameters
@@ -89,7 +89,7 @@ Type objective_function<Type>::operator() ()
   for (int i=0; i<n_i; i++){
     mrprob(i) = linear_x(x_s(s_i(i))) + Epsilon_xt(x_s(s_i(i)),t_i(i));
     if( !isNA(c_i(i)) ){
-       jnll -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
+       PARALLEL_REGION jnll -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
     }
   }
 //  jnll = jnll_comp.sum();
