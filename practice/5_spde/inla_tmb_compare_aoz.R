@@ -254,6 +254,7 @@ len = nrow(pred_inla)/nperiod
 
 ###########################################################
 ### Summarize draws and compare
+message("summarizing draws")
 ## make summary plots - median, 2.5% and 97.5%
 summ_inla <- cbind(median=(apply(pred_inla,1,median)),sd=(apply(pred_inla,1,sd)))
 ## make summary plots - median, 2.5% and 97.5%
@@ -286,6 +287,7 @@ mmn <- min(c(summ_inla[,1],summ_tmb[,1],truth))
 mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
 
 ## plot
+message('making plots')
 require(grDevices)
 pdf(sprintf('mean_error_tmb_inla_%i_clusts_%iexpMths_wo_priors.pdf', n.clust, n.expMths), height=20,width=16)
 
