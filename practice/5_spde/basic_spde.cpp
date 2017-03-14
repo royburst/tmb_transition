@@ -88,7 +88,7 @@ Type objective_function<Type>::operator() ()
   for (int i=0; i<n_i; i++){
     mrprob(i) = linear_x(x_s(s_i(i))) + Epsilon_xt(x_s(s_i(i)),t_i(i));
     if( !isNA(c_i(i)) ){
-      PARALLEL_REGION jnll -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
+      jnll -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
     }
   }
 //  jnll = jnll_comp.sum();
@@ -98,9 +98,9 @@ Type objective_function<Type>::operator() ()
   // REPORT( jnll_comp );
   // REPORT( jnll );
   // REPORT( SigmaE );
-  REPORT( alpha );
+//  REPORT( alpha );
   ADREPORT( alpha );
-  REPORT( Epsilon_xt );
+//  REPORT( Epsilon_xt );
   ADREPORT( Epsilon_xt );
 
 
