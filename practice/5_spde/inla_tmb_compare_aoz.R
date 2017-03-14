@@ -284,9 +284,11 @@ mmn <- min(c(summ_inla[,1],summ_tmb[,1],truth))
 mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
 
 ## plot
-pdf('mean_error_tmb_inla_tkr_priors_250_clusts_wo_priors_no_GMRF_sp.pdf',height=12,width=6)
+require(grDevices)
+pdf('mean_error_tmb_inla_tkr_priors_250_clusts_wo_priors_no_GMRF_sp.pdf',height=20,width=16)
 
-par(mfrow=c(4,3))
+par(mfrow=c(4,3),
+    mar = c(3, 3, 3, 9))
 
 truthr<- simobj$r.true.mr
 values(truthr) <- truth
@@ -305,11 +307,17 @@ plot(m_tmb_r[[1]],main='MEDIAN TMB',zlim=c(mmn,mmx))
 ## 5
 plot(m_inla_r[[1]],main='MEDIAN INLA',zlim=c(mmn,mmx))
 ## 6
-plot(m_diff_r[[1]],main='MEDIAN DIFFERENCE')
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(m_diff_r)), 0, length = 15), 0, seq(0, max(values(m_diff_r)),length = 15))[-c(15, 16)]
+plot(m_diff_r[[1]],main='MEDIAN DIFFERENCE', col = cls, breaks = brks)
 ## 7
-plot(e_tmb_r[[1]],main='TMB ERROR',zlim=c(emn,emx))
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(e_tmb_r)), 0, length = 15), 0, seq(0, max(values(e_tmb_r)),length = 15))[-c(15, 16)]
+plot(e_tmb_r[[1]],main='TMB ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
 ## 8
-plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx))
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(e_inla_r)), 0, length = 15), 0, seq(0, max(values(e_inla_r)),length = 15))[-c(15, 16)]
+plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
 ## 9
 plot.new()
 ## 10
@@ -319,6 +327,8 @@ points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 plot(sd_inla_r[[1]],main='INLA SD',zlim=c(smn,smx))
 points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 ## 12
-plot(sd_diff_r[[1]],main='SD DIFFERENCE')
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(sd_diff_r)), 0, length = 15), 0, seq(0, max(values(sd_diff_r)),length = 15))[-c(15, 16)]
+plot(sd_diff_r[[1]],main='SD DIFFERENCE', col = cls, breaks = brks)
 
 dev.off()
