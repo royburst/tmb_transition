@@ -24,6 +24,7 @@ source('utils.R')
 ## Simulate a surface, this returns a list of useful objects like samples and truth
 n.clust   <- 250
 n.expMths <- 1000
+n.periods <- 1
 simobj <- mortsim(nu         = 2            ,  ##  Matern smoothness parameter (alpha in INLA speak)
                   betas      = c(-3,-1,1.5,1) ,  ##  Intercept coef and covariate coef For Linear predictors
                   scale      = .25            ,  ##  Matern scale eparameter
@@ -31,12 +32,14 @@ simobj <- mortsim(nu         = 2            ,  ##  Matern smoothness parameter (
                   rho        = 0.9          ,  ##  AR1 term
                   l          = 51           ,  ##  Matrix Length
                   n_clusters = n.clust          ,  ##  number of clusters sampled ]
-                  n_periods  = 1, ##  number of periods (1 = no spacetime)
+                  n_periods  = n.periods, ##  number of periods (1 = no spacetime)
                   mean.exposure.months = n.expMths,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)       ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 3           ,  ##  how many covariates to include?
                   seed   = NULL             ,
                   returnall=TRUE            )
+
+message(sprintf("Simulated data with n.clusts=%i, n.expMths=%i, and n.periods=%i", n.clust, n.expMths, n.periods))
 
 
 ## get samples from which to fit
