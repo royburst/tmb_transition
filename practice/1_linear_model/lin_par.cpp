@@ -8,8 +8,12 @@ Type objective_function<Type>::operator() ()
   PARAMETER(b);
   PARAMETER(logSigma);
 //  parallel_accumulator<Type> nll(this);
-  max_parallel_regions = omp_get_max_threads();
+  using namespace density;
+
   Type nll = 0;
+  max_parallel_regions = omp_get_max_threads();
+
   for(int i=0;i<x.size();i++)PARALLEL_REGION nll-=dnorm(Y[i],a+b*x[i],exp(logSigma),true);
+
   return nll;
 }
