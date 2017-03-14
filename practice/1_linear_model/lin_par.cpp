@@ -7,7 +7,8 @@ Type objective_function<Type>::operator() ()
   PARAMETER(a);
   PARAMETER(b);
   PARAMETER(logSigma);
-  parallel_accumulator<Type> nll(this);
+//  parallel_accumulator<Type> nll(this);
+ Type nll = 0;
   using namespace density;
 
 //  Type nll = 0;
