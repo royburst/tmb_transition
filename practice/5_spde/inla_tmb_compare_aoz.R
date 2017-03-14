@@ -1,6 +1,5 @@
 
 rm(list=ls())
-gc()
 options(scipen=999)
 .libPaths('/home/j/temp/geospatial/packages')
 
@@ -31,7 +30,7 @@ simobj <- mortsim(  nu         = 2            ,  ##  Matern smoothness parameter
                   l          = 51           ,  ##  Matrix Length
                   n_clusters = 250          ,  ##  number of clusters sampled ]
                   n_periods  = 4            ,  ##  number of periods (1 = no spacetime)
-                  mean.exposure.months = 100,  ##  mean exposure months per cluster
+                  mean.exposure.months = 1000,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)       ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 3           ,  ##  how many covariates to include?
                   seed   = NULL             ,
@@ -109,45 +108,18 @@ obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, 
 ## Run optimizer
 message('running TMB optimizer')
 start_time = Sys.time()
-opt0 <- do.call("nlminb",list(start       =    obj$par,
-                        objective   =    obj$fn,
-                        gradient    =    obj$gr,
-                        lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-                        upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
-                        control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))
-
+opt0 = nlminb(start       =    obj$par,
+              objective   =    obj$fn,
+              gradient    =    obj$gr,
+              lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
+              upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
+              control     =    list(eval.max=1e4, iter.max=1e4, trace=0))
 model.runtime = (Sys.time() - start_time)
 message(sprintf("TMB took %s minutes to run", model.runtime))
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
 ## head(summary(SD0))
 
-
-# try benchmarking
-if(T==F){
-  ben <- benchmark(obj, n=1, cores=c(1,5,10,20,30,40), expr=expression(do.call("nlminb",list(start       =    obj$par,
-                          objective   =    obj$fn,
-                          gradient    =    obj$gr,
-                          lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-                          upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
-                          control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))))
-  png( file="Benchmark.png", width=6, height=6, res=200, units="in")
-    plot(ben)
-  dev.off()
-
-  ## TEST SOME PARALLELIZATION
-  library(parallel)
-  openmp(1)
-  mclapply(1:10,function(x)do.call("nlminb",list(start       =    obj$par,
-                                                  objective   =    obj$fn,
-                                                  gradient    =    obj$gr,
-                                                  lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-                                                  upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
-                                                  control     =    list(eval.max=1e4, iter.max=1e4, trace=0))))
-
-}
-
-
-# Get standard errors
+## Get standard errors
 message('getting standard errors')
 ## Report0 = obj$report()
 SD0 = sdreport(obj,getReportCovariance=TRUE)
@@ -312,9 +284,11 @@ mmn <- min(c(summ_inla[,1],summ_tmb[,1],truth))
 mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
 
 ## plot
-pdf('mean_error_tmb_inla_tkr_priors_250_clusts_wo_priors_no_GMRF_sp.pdf',height=12,width=6)
+require(grDevices)
+pdf('mean_error_tmb_inla_tkr_priors_250_clusts_wo_priors_no_GMRF_sp.pdf',height=20,width=16)
 
-par(mfrow=c(4,3))
+par(mfrow=c(4,3),
+    mar = c(3, 3, 3, 9))
 
 truthr<- simobj$r.true.mr
 values(truthr) <- truth
@@ -333,11 +307,17 @@ plot(m_tmb_r[[1]],main='MEDIAN TMB',zlim=c(mmn,mmx))
 ## 5
 plot(m_inla_r[[1]],main='MEDIAN INLA',zlim=c(mmn,mmx))
 ## 6
-plot(m_diff_r[[1]],main='MEDIAN DIFFERENCE')
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(m_diff_r)), 0, length = 15), 0, seq(0, max(values(m_diff_r)),length = 15))[-c(15, 16)]
+plot(m_diff_r[[1]],main='MEDIAN DIFFERENCE', col = cls, breaks = brks)
 ## 7
-plot(e_tmb_r[[1]],main='TMB ERROR',zlim=c(emn,emx))
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(e_tmb_r)), 0, length = 15), 0, seq(0, max(values(e_tmb_r)),length = 15))[-c(15, 16)]
+plot(e_tmb_r[[1]],main='TMB ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
 ## 8
-plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx))
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(e_inla_r)), 0, length = 15), 0, seq(0, max(values(e_inla_r)),length = 15))[-c(15, 16)]
+plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
 ## 9
 plot.new()
 ## 10
@@ -347,6 +327,8 @@ points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 plot(sd_inla_r[[1]],main='INLA SD',zlim=c(smn,smx))
 points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 ## 12
-plot(sd_diff_r[[1]],main='SD DIFFERENCE')
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(sd_diff_r)), 0, length = 15), 0, seq(0, max(values(sd_diff_r)),length = 15))[-c(15, 16)]
+plot(sd_diff_r[[1]],main='SD DIFFERENCE', col = cls, breaks = brks)
 
 dev.off()
