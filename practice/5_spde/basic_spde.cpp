@@ -41,9 +41,10 @@ Type objective_function<Type>::operator() ()
 
   // objective function -- joint negative log-likelihood
   using namespace density;
-  Type jnll = 0;
-  vector<Type> jnll_comp(3);
-  jnll_comp.setZero();
+//  Type jnll = 0;
+//  vector<Type> jnll_comp(3);
+//  jnll_comp.setZero();
+  parallel_accumulator<Type> jnll;
 
 
   // Spatial parameters
@@ -61,8 +62,8 @@ Type objective_function<Type>::operator() ()
 
 
   // Probability of Gaussian-Markov random fields (GMRFs)
-  jnll_comp(0) += GMRF(Q)(sp);
-  jnll_comp(1) += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
+//  jnll_comp(0) += GMRF(Q)(sp);
+  jnll += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
 
 
   // Transform GMRFs
@@ -79,10 +80,10 @@ Type objective_function<Type>::operator() ()
   for (int i=0; i<n_i; i++){
     mrprob(i) = linear_x(x_s(s_i(i))) + Epsilon_xt(x_s(s_i(i)),t_i(i));
     if( !isNA(c_i(i)) ){
-      jnll_comp(2) -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
+      jnll -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
     }
   }
-  jnll = jnll_comp.sum();
+//  jnll = jnll_comp.sum();
 
 
   // Diagnostics
