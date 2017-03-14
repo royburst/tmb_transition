@@ -1,5 +1,6 @@
 
 rm(list=ls())
+gc()
 options(scipen=999)
 .libPaths('/home/j/temp/geospatial/packages')
 
@@ -108,13 +109,17 @@ obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, 
 # Run optimizer
 message('running optimizer')
 start_time = Sys.time()
-opt0 = nlminb(start       =    obj$par,
-              objective   =    obj$fn,
-              gradient    =    obj$gr,
-              control     =    list(eval.max=1e4, iter.max=1e4, trace=0))
+opt0 <- do.call("nlminb",list(start       =    obj$par,
+                        objective   =    obj$fn,
+                        gradient    =    obj$gr,
+                        lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
+                        upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
+                        control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))
+
 model.runtime = (Sys.time() - start_time)
 # opt0[["final_gradient"]] = obj$gr( opt0$par )
 # head(summary(SD0))
+
 
 # Get standard errors
 message('getting standard errors')

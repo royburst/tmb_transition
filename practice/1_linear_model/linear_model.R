@@ -12,7 +12,7 @@ library(TMB)
 dir <- paste0("/homes/",Sys.info()['user'],"/tmb_transition")
 setwd(paste0(dir,"/practice/1_linear_model"))
 # git pull
-system(paste0('cd ',dir,'\ngit pull origin master'))
+system(paste0('cd ',dir,'\ngit pull origin develop'))
 
 ############
 # Example 1 -- normal model
@@ -102,8 +102,8 @@ sdreport(obj) # standard errors the easier way
 ############
 
 # Simulate some basic data
-X <- cbind(rep(1,100),runif(n=100))
-y <- 2*X[,1] + 10*X[,2] + rnorm(n=100,mean=0,sd=2)
+X <- cbind(rep(1,100000),runif(n=100000))
+y <- 2*X[,1] + 10*X[,2] + rnorm(n=100000,mean=0,sd=2)
 summary(lm(y~X[,2]))# test
 
 # compile template file
