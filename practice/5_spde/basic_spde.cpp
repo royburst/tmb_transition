@@ -44,7 +44,7 @@ Type objective_function<Type>::operator() ()
 //  Type jnll = 0;
 //  vector<Type> jnll_comp(3);
 //  jnll_comp.setZero();
-  parallel_accumulator<Type> jnll;
+  parallel_accumulator jnll(this);
 
 
   // Spatial parameters
