@@ -72,7 +72,7 @@ Type objective_function<Type>::operator() ()
 
   // Probability of Gaussian-Markov random fields (GMRFs)
 //  PARALLEL_REGION jnll += GMRF(Q)(sp);
-  PARALLEL_REGION jnll += SEPARABLE(AR1(rho),GMRF(Q)(sp))(epsilon);
+  PARALLEL_REGION jnll += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
 
 
 
