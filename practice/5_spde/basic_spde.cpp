@@ -74,8 +74,11 @@ Type objective_function<Type>::operator() ()
 
   // Probability of Gaussian-Markov random fields (GMRFs)
 //   jnll += GMRF(Q)(sp);
-   jnll_comp[0] += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
-
+   if(n_t > 1 ){
+     jnll_comp[0] += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
+   } else {
+     jnll_comp[0] += GMRF(Q)(epsilon);
+   }
 
 
   // Transform GMRFs
@@ -101,7 +104,7 @@ Type objective_function<Type>::operator() ()
   // REPORT( jnll_comp );
   // REPORT( jnll );
   // REPORT( SigmaE );
-    REPORT( alpha );
+  REPORT( alpha );
   ADREPORT( alpha );
   REPORT( Epsilon_xt );
   ADREPORT( Epsilon_xt );

@@ -12,6 +12,7 @@ data <- list(Y=rnorm(length(x))+x,x=x)
 parameters <- list(a=0,b=0,logSigma=0)
 compile( "lin_par.cpp" )
 dyn.load(dynlib("lin_par"))
+
 obj <- MakeADFun(data,parameters,DLL="lin_par")
 obj$hessian <- TRUE
 opt <- do.call("optim",obj)
