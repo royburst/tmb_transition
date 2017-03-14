@@ -41,10 +41,10 @@ Type objective_function<Type>::operator() ()
 
   // objective function -- joint negative log-likelihood
   using namespace density;
-//  Type jnll = 0;
+  Type jnll = 0;
 //  vector<Type> jnll_comp(3);
 //  jnll_comp.setZero();
-  parallel_accumulator<Type> jnll(this);
+//  parallel_accumulator<Type> jnll(this);
 
 
   // Spatial parameters
@@ -88,7 +88,7 @@ Type objective_function<Type>::operator() ()
   for (int i=0; i<n_i; i++){
     mrprob(i) = linear_x(x_s(s_i(i))) + Epsilon_xt(x_s(s_i(i)),t_i(i));
     if( !isNA(c_i(i)) ){
-      jnll -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
+      PARALLEL_REGION jnll -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
     }
   }
 //  jnll = jnll_comp.sum();
