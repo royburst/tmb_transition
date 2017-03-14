@@ -7,10 +7,10 @@ Type objective_function<Type>::operator() ()
   PARAMETER(a);
   PARAMETER(b);
   PARAMETER(logSigma);
-//  parallel_accumulator<Type> nll(this);
+  parallel_accumulator<Type> nll(this);
   using namespace density;
 
-  Type nll = 0;
+//  Type nll = 0;
   max_parallel_regions = omp_get_max_threads();
 
   for(int i=0;i<x.size();i++){
