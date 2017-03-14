@@ -30,7 +30,7 @@ simobj <- mortsim(  nu         = 2            ,  ##  Matern smoothness parameter
                   rho        = 0.9          ,  ##  AR1 term
                   l          = 51           ,  ##  Matrix Length
                   n_clusters = 250          ,  ##  number of clusters sampled ]
-                  n_periods  = 4            ,  ##  number of periods (1 = no spacetime)
+                  n_periods  = 1            ,  ##  number of periods (1 = no spacetime)
                   mean.exposure.months = 100,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)       ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 3           ,  ##  how many covariates to include?
@@ -88,7 +88,7 @@ Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parame
                   log_tau_E=1.0,                                    ## log inverse of tau  (Epsilon)
                   ##                  log_tau_O=1.0,                ## log inverse of tau (SP)
                   log_kappa=0.0,	                            ## Matern Range parameter
-                  rho=0.5,                                          ## Autocorrelation term
+        #          rho=0.5,                                          ## Autocorrelation term
                   epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n)) #,     ## GP
               #   sp=matrix(rnorm(mesh_s$n)))                       ## RE for mesh points
 
@@ -114,8 +114,8 @@ ptm <- proc.time()
 opt0 <- do.call("nlminb",list(start       =    obj$par,
                         objective   =    obj$fn,
                         gradient    =    obj$gr,
-                        lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-                        upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
+                        lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2)), #,-0.999),
+                        upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2)),#, 0.999),
                         control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
 proc.time() - ptm
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
