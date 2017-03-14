@@ -30,7 +30,7 @@ simobj <- mortsim(  nu         = 2            ,  ##  Matern smoothness parameter
                   l          = 51           ,  ##  Matrix Length
                   n_clusters = 250          ,  ##  number of clusters sampled ]
                   n_periods  = 4            ,  ##  number of periods (1 = no spacetime)
-                  mean.exposure.months = 100,  ##  mean exposure months per cluster
+                  mean.exposure.months = 1000,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)       ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 3           ,  ##  how many covariates to include?
                   seed   = NULL             ,

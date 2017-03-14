@@ -68,7 +68,7 @@ Type objective_function<Type>::operator() ()
 
 
   // Probability of Gaussian-Markov random fields (GMRFs)
-  // jnll_comp(0) += GMRF(Q)(sp);
+  // jnll_comp(0) += GMRF(Q)(sp); // we belive this was extraneous and didn't need to be included
   jnll_comp(1) += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
 
 
