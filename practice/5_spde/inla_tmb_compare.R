@@ -28,9 +28,9 @@ simobj <- mortsim(  nu         = 2            ,  ##  Matern smoothness parameter
                   Sigma2     = (.25) ^ 2      ,  ##  Variance (Nugget)
                   rho        = 0.9          ,  ##  AR1 term
                   l          = 51           ,  ##  Matrix Length
-                  n_clusters = 50           ,  ##  number of clusters sampled ]
+                  n_clusters = 250          ,  ##  number of clusters sampled ]
                   n_periods  = 4            ,  ##  number of periods (1 = no spacetime)
-                  mean.exposure.months = 10,  ##  mean exposure months per cluster
+                  mean.exposure.months = 100,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)       ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 3           ,  ##  how many covariates to include?
                   seed   = NULL             ,
@@ -169,7 +169,7 @@ pred_tmp <- cell_l + cell_s
 len = nrow(pred_tmp)/nperiod
 
 
-                                        #eras_tmb <- rasterFromXYZT(data.table(pcoords,p=e,t=rep(1:nperiod,each=len)),"p","t")
+## eras_tmb <- rasterFromXYZT(data.table(pcoords,p=e,t=rep(1:nperiod,each=len)),"p","t")
 
 ####################################################################
 ## fit using inla
@@ -280,7 +280,7 @@ mmn <- min(c(summ_inla[,1],summ_tmb[,1],truth))
 mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
 
 ## plot
-pdf('mean_error_tmb_inla.pdf',height=12,width=6)
+pdf('mean_error_tmb_inla_tkr_priors_15clusts.pdf',height=12,width=6)
 
 par(mfrow=c(4,2))
 
