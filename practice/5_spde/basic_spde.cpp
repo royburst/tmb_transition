@@ -34,7 +34,6 @@ Type objective_function<Type>::operator() ()
   PARAMETER_VECTOR(alpha);
   PARAMETER(log_tau_E);
   PARAMETER(log_kappa);
-  PARAMETER(rho);
 
   // Random effects
   PARAMETER_ARRAY(epsilon);
@@ -57,7 +56,7 @@ Type objective_function<Type>::operator() ()
   Type Range = sqrt(8) / exp( log_kappa );
   Type SigmaE = 1 / sqrt(4*pi*exp(2*log_tau_E)*exp(2*log_kappa));
   Eigen::SparseMatrix<Type> Q = kappa4*G0 + Type(2.0)*kappa2*G1 + G2;
-  Type rho_trans = log((1+rho)/(1-rho));
+//  Type rho_trans = log((1+rho)/(1-rho));
 
 
   // Objects for derived values
@@ -75,6 +74,8 @@ Type objective_function<Type>::operator() ()
   // Probability of Gaussian-Markov random fields (GMRFs)
 //   jnll += GMRF(Q)(sp);
    if(n_t > 1 ){
+       PARAMETER(rho);
+
      jnll_comp[0] += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
    } else {
      jnll_comp[0] += GMRF(Q)(epsilon);
