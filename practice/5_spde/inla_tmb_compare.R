@@ -280,7 +280,7 @@ mmn <- min(c(summ_inla[,1],summ_tmb[,1],truth))
 mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
 
 ## plot
-pdf('mean_error_tmb_inla_tkr_priors_250_clusts_wo_priors.pdf',height=12,width=6)
+pdf('mean_error_tmb_inla_tkr_priors_250_clusts_wo_priors_no_GMRF_sp.pdf',height=12,width=6)
 
 par(mfrow=c(4,2))
 

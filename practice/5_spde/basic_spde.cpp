@@ -63,9 +63,12 @@ Type objective_function<Type>::operator() ()
   // jnll_comp(3) -= dnorm(log_tau_E, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_tau
   // jnll_comp(3) -= dnorm(log_kappa, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_kappa
   // jnll_comp(3) -= dnorm(rho_trans, Type(0.0), Type(2.582), true); // N(0, sqrt(1/.15) prior on log((1+rho)/(1-rho))
+  // jnll_comp(3) -= dnorm(alpha, Type(0.0), Type(100), true); // N(0, sqrt(1/.0001)) prior for fixed effects.
+  // NOTE: in INLA the intercept is given a prior N(mean=0, prec=0) which I don't know how to code here
+
 
   // Probability of Gaussian-Markov random fields (GMRFs)
-  jnll_comp(0) += GMRF(Q)(sp);
+  // jnll_comp(0) += GMRF(Q)(sp);
   jnll_comp(1) += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
 
 
@@ -91,7 +94,7 @@ Type objective_function<Type>::operator() ()
   // Diagnostics
   // REPORT( jnll_comp );
   // REPORT( jnll );
-//   REPORT( SigmaE );
+  // REPORT( SigmaE );
   REPORT( alpha );
   ADREPORT( alpha );
   REPORT( Epsilon_xt );
