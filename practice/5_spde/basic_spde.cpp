@@ -47,7 +47,7 @@ Type objective_function<Type>::operator() ()
   jnll_comp.setZero();
 //    parallel_accumulator<Type> jnll(this);
   max_parallel_regions = omp_get_max_threads();
-  printf("This is thread %d\n", max_parallel_regions)
+  printf("This is thread %d\n", max_parallel_regions);
 
   // Spatial parameters
   Type kappa2 = exp(2.0*log_kappa);
