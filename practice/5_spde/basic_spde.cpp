@@ -34,9 +34,11 @@ Type objective_function<Type>::operator() ()
   PARAMETER_VECTOR(alpha);
   PARAMETER(log_tau_E);
   PARAMETER(log_kappa);
+  PARAMETER(rho);
 
   // Random effects
   PARAMETER_ARRAY(epsilon);
+
 //  PARAMETER_ARRAY(sp);
 
 
@@ -74,7 +76,6 @@ Type objective_function<Type>::operator() ()
   // Probability of Gaussian-Markov random fields (GMRFs)
 //   jnll += GMRF(Q)(sp);
    if(n_t > 1 ){
-     PARAMETER(rho);
      jnll_comp[0] += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
    } else {
      jnll_comp[0] += GMRF(Q)(epsilon);
