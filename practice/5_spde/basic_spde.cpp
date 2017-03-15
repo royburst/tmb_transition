@@ -69,7 +69,7 @@ Type objective_function<Type>::operator() ()
    jnll_comp[2] -= dnorm(log_tau_E, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_tau
    jnll_comp[2] -= dnorm(log_kappa, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_kappa
    jnll_comp[2] -= dnorm(rho_trans, Type(0.0), Type(2.582), true); // N(0, sqrt(1/.15) prior on log((1+rho)/(1-rho))
-   jnll_comp[2] -= dnorm(alpha, Type(0.0), Type(100), true); // N(0, sqrt(1/.0001)) prior for fixed effects.
+//   jnll_comp[2] -= dnorm(alpha, Type(0.0), Type(100), true); // N(0, sqrt(1/.0001)) prior for fixed effects.
   // NOTE: in INLA the intercept is given a prior N(mean=0, prec=0) which I don't know how to code here
 
 
