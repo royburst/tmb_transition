@@ -58,7 +58,7 @@ Type objective_function<Type>::operator() ()
   Type Range = sqrt(8) / exp( log_kappa );
   Type SigmaE = 1 / sqrt(4*pi*exp(2*log_tau_E)*exp(2*log_kappa));
   Eigen::SparseMatrix<Type> Q = kappa4*G0 + Type(2.0)*kappa2*G1 + G2;
-//  Type rho_trans = log((1+rho)/(1-rho));
+  Type rho_trans = log((1+rho)/(1-rho));
 
 
   // Objects for derived values
