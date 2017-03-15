@@ -105,9 +105,9 @@ Type objective_function<Type>::operator() ()
   // REPORT( jnll_comp );
   // REPORT( jnll );
   // REPORT( SigmaE );
-  REPORT( alpha );
+//  REPORT( alpha );
   ADREPORT( alpha );
-  REPORT( Epsilon_xt );
+//  REPORT( Epsilon_xt );
   ADREPORT( Epsilon_xt );
 
 
