@@ -92,6 +92,15 @@ Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parame
                   epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n)) #,     ## GP
               #   sp=matrix(rnorm(mesh_s$n)))                       ## RE for mesh points
 
+#bounds
+lower       =    c(rep(-20,dim(X_xp)[2]),rep(-10,2))
+upper       =    c(rep(20 ,dim(X_xp)[2]),rep( 10,2))
+
+if(nperiod>1) {
+  lower = c(lower,-0.999)
+  upper = c(upper, 0.999)
+  Parameters[['rho']]=0.5
+}
 
 ## which parameters are random
 Random = c("epsilon") #,"sp") ## 'sp','log_tau_E','log_kappa','rho')
@@ -114,8 +123,8 @@ ptm <- proc.time()
 opt0 <- do.call("nlminb",list(start       =    obj$par,
                         objective   =    obj$fn,
                         gradient    =    obj$gr,
-                        lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2)), #,-0.999),
-                        upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2)),#, 0.999),
+                        lower       =    lower,
+                        upper       =    upper,
                         control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
 proc.time() - ptm
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
@@ -229,7 +238,7 @@ res_fit <- inla(formula,
                 Ntrials = dt$exposures,
                 verbose = TRUE,
                 keep = TRUE)
-message(sprintf("INLA took %f minutes to complete", res_fit$cpu.used[4] / 60))
+
 
 draws <- inla.posterior.sample(ndraws, res_fit)
 
