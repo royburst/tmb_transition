@@ -31,7 +31,7 @@ Type objective_function<Type>::operator() ()
   DATA_SPARSE_MATRIX(G2);
 
   // Options
-  DATA_IVECTOR( options )
+  DATA_VECTOR( options )
 
   // Fixed effects
   PARAMETER_VECTOR(alpha);
