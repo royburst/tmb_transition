@@ -47,9 +47,10 @@ Type objective_function<Type>::operator() ()
 
   // objective function -- joint negative log-likelihood
   using namespace density;
-  Type jnll = 0;
   vector<Type> jnll_comp(3);
-  jnll_comp.setZero();
+  jnll_comp[0] = Type(0);
+  jnll_comp[1] = Type(0);
+  jnll_comp[2] = Type(0);
 //    parallel_accumulator<Type> jnll(this);
   max_parallel_regions = omp_get_max_threads();
   printf("This is thread %d\n", max_parallel_regions);
@@ -72,8 +73,10 @@ Type objective_function<Type>::operator() ()
    jnll_comp[2] -= dnorm(log_tau_E, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_tau
    jnll_comp[2] -= dnorm(log_kappa, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_kappa
    jnll_comp[2] -= dnorm(rho_trans, Type(0.0), Type(2.582), true); // N(0, sqrt(1/.15) prior on log((1+rho)/(1-rho))
-//   jnll_comp[2] -= dnorm(alpha, Type(0.0), Type(100), true); // N(0, sqrt(1/.0001)) prior for fixed effects.
-  // NOTE: in INLA the intercept is given a prior N(mean=0, prec=0) which I don't know how to code here
+   for( int i=0; i<alpha.size();; i++){
+       printf("This is alpha %d\n", i);
+      jnll_comp[2] -= dnorm(alpha(i), Type(0.0), Type(100), true); // N(0, sqrt(1/.0001)) prior for fixed effects.
+   }
 
 
   // Probability of Gaussian-Markov random fields (GMRFs)
@@ -95,13 +98,13 @@ Type objective_function<Type>::operator() ()
   linear_x = X_xp * alpha.matrix();
   vector<Type> mrprob(n_i);
   for (int i=0; i<n_i; i++){
-    if(options(0)==0) Epsilon_xt(x_s(s_i(i)),t_i(i)) = epsilon(x_s(s_i(i)),t_i(i))/exp(log_tau_E);
+    if(options(0)==0) Epsilon_xt(x_s(s_i(i)),t_i(i)) = epsilon(x_s(s_i(i)),t_i(i))/exp(log_tau_E); // WITH SCALE ABOVE, THIS IS UNNECESSARY (?)
     mrprob(i) = linear_x(x_s(s_i(i))) + Epsilon_xt(x_s(s_i(i)),t_i(i));
     if( !isNA(c_i(i)) ){
        PARALLEL_REGION jnll_comp[1] -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
     }
   }
-  jnll = jnll_comp.sum();
+  Type jnll = jnll_comp.sum();
 
 
   // Diagnostics
