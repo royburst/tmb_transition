@@ -30,6 +30,9 @@ Type objective_function<Type>::operator() ()
   DATA_SPARSE_MATRIX(G1);
   DATA_SPARSE_MATRIX(G2);
 
+  // Options
+  DATA_IVECTOR( options )
+
   // Fixed effects
   PARAMETER_VECTOR(alpha);
   PARAMETER(log_tau_E);
@@ -74,13 +77,19 @@ Type objective_function<Type>::operator() ()
 
 
   // Probability of Gaussian-Markov random fields (GMRFs)
-//   jnll += GMRF(Q)(sp);
-   if(n_t > 1 ){
-     PARALLEL_REGION jnll_comp[0] += SCALE(SEPARABLE(AR1(rho),GMRF(Q)),1/exp(log_tau_E))(epsilon);
-   } else {
-     PARALLEL_REGION jnll_comp[0] += SCALE(GMRF(Q),1/exp(log_tau_E))(epsilon);
-   }
-
+   if(options[0]==0){ // test scaling
+     if(n_t > 1 ){
+       PARALLEL_REGION jnll_comp[0] += SCALE(SEPARABLE(AR1(rho),GMRF(Q)),1/exp(log_tau_E))(epsilon);
+     } else {
+       PARALLEL_REGION jnll_comp[0] += SCALE(GMRF(Q),1/exp(log_tau_E))(epsilon);
+     }
+  } else {
+     if(n_t > 1 ){
+       PARALLEL_REGION jnll_comp[0] += SEPARABLE(AR1(rho),GMRF(Q)),1/exp(log_tau_E)(epsilon);
+     } else {
+       PARALLEL_REGION jnll_comp[0] += GMRF(Q),1/exp(log_tau_E)(epsilon);
+     }
+  }
 
   // Transform GMRFs
   for(int x=0; x<n_x; x++){
