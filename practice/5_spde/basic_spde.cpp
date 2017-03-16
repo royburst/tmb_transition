@@ -77,32 +77,25 @@ Type objective_function<Type>::operator() ()
 
 
   // Probability of Gaussian-Markov random fields (GMRFs)
-   if(options(0)==0){ // test scaling
      if(n_t > 1 ){
        PARALLEL_REGION jnll_comp[0] += SCALE(SEPARABLE(AR1(rho),GMRF(Q)),1/exp(log_tau_E))(epsilon);
      } else {
        PARALLEL_REGION jnll_comp[0] += SCALE(GMRF(Q),1/exp(log_tau_E))(epsilon);
      }
-  } else {
-     if(n_t > 1 ){
-       PARALLEL_REGION jnll_comp[0] += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
-     } else {
-       PARALLEL_REGION jnll_comp[0] += GMRF(Q)(epsilon);
-     }
-  }
+
 
   // Transform GMRFs
-  for(int x=0; x<n_x; x++){
-    for( int t=0; t<n_t; t++){
-      Epsilon_xt(x,t) = epsilon(x,t) / exp(log_tau_E);
-    }
-  }
+//  for(int x=0; x<n_x; x++){
+//    for( int t=0; t<n_t; t++){
+  //    Epsilon_xt(x,t) = epsilon(x,t) / exp(log_tau_E);
+//    }
+//  }
 
   // Likelihood contribution from observations
   linear_x = X_xp * alpha.matrix();
   vector<Type> mrprob(n_i);
   for (int i=0; i<n_i; i++){
-    mrprob(i) = linear_x(x_s(s_i(i))) + Epsilon_xt(x_s(s_i(i)),t_i(i));
+    mrprob(i) = linear_x(x_s(s_i(i))) + epsilon(x_s(s_i(i)),t_i(i)) // /exp(log_tau_E);
     if( !isNA(c_i(i)) ){
        PARALLEL_REGION jnll_comp[1] -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
     }
