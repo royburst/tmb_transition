@@ -76,18 +76,18 @@ Type objective_function<Type>::operator() ()
   // Probability of Gaussian-Markov random fields (GMRFs)
 //   jnll += GMRF(Q)(sp);
    if(n_t > 1 ){
-     jnll_comp[0] += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
+     PARALLEL_REGION jnll_comp[0] += SCALE(SEPARABLE(AR1(rho),GMRF(Q))(epsilon),1/exp(log_tau_E));
    } else {
-     jnll_comp[0] += GMRF(Q)(epsilon);
+     PARALLEL_REGION jnll_comp[0] += SCALE(GMRF(Q)(epsilon),1/exp(log_tau_E));
    }
 
 
   // Transform GMRFs
-  for(int x=0; x<n_x; x++){
-    for( int t=0; t<n_t; t++){
-      Epsilon_xt(x,t) = epsilon(x,t) / exp(log_tau_E);
-    }
-  }
+//  for(int x=0; x<n_x; x++){
+//    for( int t=0; t<n_t; t++){
+//      Epsilon_xt(x,t) = epsilon(x,t) / exp(log_tau_E);
+//    }
+//  }
 
   // Likelihood contribution from observations
   linear_x = X_xp * alpha.matrix();
