@@ -23,19 +23,19 @@ source('utils.R')
 ###############################################################
 ## SIMULATE AND SET UP THE DATA
 ## Simulate a surface, this returns a list of useful objects like samples and truth
-simobj <- mortsim(  nu         = 2            ,  ##  Matern smoothness parameter (alpha in INLA speak)
-                  betas      = c(-3,-1,1.5,1) ,  ##  Intercept coef and covariate coef For Linear predictors
-                  scale      = .25            ,  ##  Matern scale eparameter
-                  Sigma2     = (.25) ^ 2      ,  ##  Variance (Nugget)
-                  rho        = 0.9          ,  ##  AR1 term
-                  l          = 51           ,  ##  Matrix Length
-                  n_clusters = 250          ,  ##  number of clusters sampled ]
-                  n_periods  = 4            ,  ##  number of periods (1 = no spacetime)
-                  mean.exposure.months = 100,  ##  mean exposure months per cluster
-                  extent = c(0,1,0,1)       ,  ##  xmin,xmax,ymin,ymax
-                  ncovariates = 3           ,  ##  how many covariates to include?
-                  seed   = NULL             ,
-                  returnall=TRUE            )
+simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness parameter (alpha in INLA speak)
+                  betas      = c(-3,-1)        ,  ##  Intercept coef and covariate coef For Linear predictors
+                  scale      = .1              ,  ##  Matern scale eparameter
+                  Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
+                  rho        = 0.9             ,  ##  AR1 term
+                  l          = 51              ,  ##  Matrix Length
+                  n_clusters = 50           ,  ##  number of clusters sampled ]
+                  n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
+                  mean.exposure.months = 200 ,  ##  mean exposure months per cluster
+                  extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
+                  ncovariates = 1              ,  ##  how many covariates to include?
+                  seed   = NULL                ,
+                  returnall=TRUE                )
 
 
 ## get samples from which to fit
@@ -59,12 +59,11 @@ spde <- inla.spde2.matern( mesh_s,alpha=2 ) ## Build SPDE object using INLA (mus
 ## \Sigma^{-1} = \kappa^4 M_0 + 2\kappa^2M_1 + M_2
 ## M_2 = M_1M_0^{-1}M_1
 ## Where the Ms are all sparse matrices stored as "dgTMatrix"
-names(spde$param.inla)
+# names(spde$param.inla)
 
 
 ## pull covariate(s) at mesh knots
 covs <- raster::extract(simobj$cov.raster,cbind(mesh_s$loc[,1],mesh_s$loc[,2]))
-names(spde$param.inla)
 
 ## Data to pass to TMB
 X_xp = cbind( 1, covs)
@@ -82,49 +81,66 @@ Data = list(n_i=nrow(dt),                   ## Total number of observations
             G0=spde$param.inla$M0,          ## SPDE sparse matrix
             G1=spde$param.inla$M1,          ## SPDE sparse matrix
             G2=spde$param.inla$M2)          ## SPDE sparse matrix
+            #spde=(spde$param.inla)[c('M1','M2','M3')])
+
+Data$options = 0
 
 ## staring values for parameters
 Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parameters alphas
                   log_tau_E=1.0,                                    ## log inverse of tau  (Epsilon)
-                  ##                  log_tau_O=1.0,                ## log inverse of tau (SP)
-                  log_kappa=0.0,	                            ## Matern Range parameter
-                  rho=0.5,                                          ## Autocorrelation term
-                  epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n),     ## GP
-                  sp=matrix(rnorm(mesh_s$n)))                       ## RE for mesh points
-
-
-## which parameters are random
-Random = c("epsilon",'sp') ## ,'log_tau_E','log_kappa','rho')
+                  log_kappa=0.0,	                                  ## Matern Range parameter
+                  rho=0.5,
+                  epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n))     ## GP locations
 
 ##########################################################
 ### FIT MODEL
 ## Make object
 ## Compile
-TMB::compile("basic_spde_aoz.cpp")
-dyn.load( dynlib('basic_spde_aoz') )
+templ <- "basic_spde" #spde2
+TMB::compile(paste0(templ,".cpp"))
+dyn.load( dynlib(templ) )
 
-obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, DLL='basic_spde')
-                                        #obj$env$beSilent()
+#library(parallel)
+#openmp(0) # any nyumber other than 1 does not converge or speed up.
+# map to kill certain variables
+
+# a quick run to get starting values of fixed effects
+not_phase1 = list(log_tau_E=as.factor(NA),log_kappa=as.factor(NA),rho=as.factor(NA),epsilon=factor(rep(NA,mesh_s$n*nperiod)))
+obj <- MakeADFun(data=Data, parameters=Parameters, map=not_phase1, DLL=templ)
+x   <- do.call('optim',obj)
+Parameters$alpha <- x$par
+
+#bounds
+lower       =    c(rep(-20,dim(X_xp)[2]),rep(-10,2),-0.999)
+upper       =    c(rep(20 ,dim(X_xp)[2]),rep( 10,2), 0.999)
+
+# cancel out rho if needed
+mapout <- list()
+if(nperiod == 1){
+  lower  <- lower[-1]
+  upper  <- upper[-1]
+  mapout <- list(rho=factor(NA))
+}
+# make object
+#openmp(2)
+obj <- MakeADFun(data=Data, parameters=Parameters, map=mapout, random="epsilon", hessian=TRUE, DLL=templ)
 
 ## Run optimizer
-message('running TMB optimizer')
-start_time = Sys.time()
+ptm <- proc.time()
 opt0 <- do.call("nlminb",list(start       =    obj$par,
                         objective   =    obj$fn,
                         gradient    =    obj$gr,
-                        lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-                        upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
-                        control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))
-
-model.runtime = (Sys.time() - start_time)
-message(sprintf("TMB took %s minutes to run", model.runtime))
+                        lower       =    lower,
+                        upper       =    upper,
+                        control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
+proc.time() - ptm
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
 ## head(summary(SD0))
 
 
 # try benchmarking
 if(T==F){
-  ben <- benchmark(obj, n=1, cores=c(1,5,10,20,30,40), expr=expression(do.call("nlminb",list(start       =    obj$par,
+  ben <- benchmark(obj, n=1, cores=seq(1,12,3), expr=expression(do.call("nlminb",list(start       =    obj$par,
                           objective   =    obj$fn,
                           gradient    =    obj$gr,
                           lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
@@ -133,29 +149,18 @@ if(T==F){
   png( file="Benchmark.png", width=6, height=6, res=200, units="in")
     plot(ben)
   dev.off()
-
-  ## TEST SOME PARALLELIZATION
-  library(parallel)
-  openmp(1)
-  mclapply(1:10,function(x)do.call("nlminb",list(start       =    obj$par,
-                                                  objective   =    obj$fn,
-                                                  gradient    =    obj$gr,
-                                                  lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-                                                  upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
-                                                  control     =    list(eval.max=1e4, iter.max=1e4, trace=0))))
-
 }
 
-
 # Get standard errors
-message('getting standard errors')
 ## Report0 = obj$report()
 SD0 = sdreport(obj,getReportCovariance=TRUE)
 ## fe_var_covar <- SD0$cov.fixed
 
 ##### Prediction
 message('making predictions')
-mu    <- c(SD0$par.fixed[names(SD0$par.fixed)=='alpha'],SD0$par.random[names(SD0$par.random)=="epsilon"])
+#mu    <- c(SD0$par.fixed[names(SD0$par.fixed)=='alpha'],SD0$par.random[names(SD0$par.random)=="epsilon"]) # shouldnt this be Epsilon_xt as reported by ADREPORT???
+mu    <- c(SD0$value) # shouldnt this be Epsilon_xt as reported by ADREPORT???
+
 sigma <- SD0$cov
 
 ### simulate draws
@@ -166,7 +171,7 @@ draws  <- t(mvrnorm(n=ndraws,mu=mu,Sigma=sigma))
 ## ^ look for a quicker way to do this..cholesky
 
 ## separate out the draws
-epsilon_draws <- draws[rownames(draws)=='epsilon',]
+epsilon_draws <- draws[rownames(draws)=='Epsilon_xt',]
 alpha_draws   <- draws[rownames(draws)=='alpha',]
 
 ## get surface to project on to
@@ -187,9 +192,15 @@ cell_s <- as.matrix(A.pred %*% epsilon_draws)
 vals <- extract(simobj$cov.raster, pcoords[1:(nrow(simobj$fullsamplespace)/nperiod),])
 vals <- (cbind(int = 1, vals))
 
-cell_l <- vals %*% alpha_draws
+cell_ll <- vals %*% alpha_draws
 message('assuming no time varying covariates')
-cell_l <- do.call(rbind,list(cell_l,cell_l,cell_l,cell_l)) ## since there are no time varying components
+i=1
+cell_l <- cell_ll
+while(i < nperiod){
+  message(i)
+  cell_l <- rbind(cell_l,cell_ll)
+  i=i+1
+}
 
 ## add together linear and st components
 pred_tmp <- cell_l + cell_s
@@ -240,7 +251,7 @@ res_fit <- inla(formula,
                 Ntrials = dt$exposures,
                 verbose = TRUE,
                 keep = TRUE)
-message(sprintf("INLA took %f minutes to complete", res_fit$cpu.used[4] / 60))
+
 
 draws <- inla.posterior.sample(ndraws, res_fit)
 
@@ -312,7 +323,7 @@ mmn <- min(c(summ_inla[,1],summ_tmb[,1],truth))
 mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
 
 ## plot
-pdf('mean_error_tmb_inla_tkr_priors_250_clusts_wo_priors_no_GMRF_sp.pdf',height=12,width=6)
+pdf('plot.pdf',height=12,width=6)
 
 par(mfrow=c(4,3))
 
