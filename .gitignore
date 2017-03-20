@@ -27,3 +27,6 @@ inla.model*
 # cluster logs
 clusterlogs/
 job*
+
+# screen logs
+*.0
