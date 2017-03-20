@@ -13,7 +13,7 @@ library(raster)
 ## need to set to same directory as the template file, also pull from git
 ## Clone the git directory to your H drive and this should work for anyone
 dir <- paste0("/homes/",Sys.info()['user'],"/tmb_transition")
-system(paste0('cd ',dir,'\ngit pull origin develop'))
+system(paste0('cd ',dir,'\ngit pull origin aoz_dev'))
 setwd(paste0(dir,"/practice/5_spde"))
 
 ## source some functions made for this bit
@@ -28,8 +28,8 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   scale      = .1              ,  ##  Matern scale eparameter
                   Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
                   rho        = 0.9             ,  ##  AR1 term
-                  l          = 51              ,  ##  Matrix Length
-                  n_clusters = 50           ,  ##  number of clusters sampled ]
+                  l          = 250             ,  ##  Matrix Length
+                  n_clusters = 500           ,  ##  number of clusters sampled ]
                   n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
                   mean.exposure.months = 200 ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
