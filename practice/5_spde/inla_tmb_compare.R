@@ -128,11 +128,11 @@ obj <- MakeADFun(data=Data, parameters=Parameters, map=mapout, random="epsilon",
 ## Run optimizer
 ptm <- proc.time()
 opt0 <- do.call("nlminb",list(start       =    obj$par,
-                        objective   =    obj$fn,
-                        gradient    =    obj$gr,
-                        lower       =    lower,
-                        upper       =    upper,
-                        control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
+                              objective   =    obj$fn,
+                              gradient    =    obj$gr,
+                              lower       =    lower,
+                              upper       =    upper,
+                              control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
 proc.time() - ptm
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
 ## head(summary(SD0))
@@ -140,12 +140,15 @@ proc.time() - ptm
 
 # try benchmarking
 if(T==F){
-  ben <- benchmark(obj, n=1, cores=seq(1,12,3), expr=expression(do.call("nlminb",list(start       =    obj$par,
-                          objective   =    obj$fn,
-                          gradient    =    obj$gr,
-                          lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-                          upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
-                          control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))))
+  ben <- benchmark(obj,
+                   n=1,
+                   cores=seq(1,12,3),
+                   expr=expression(do.call("nlminb",list(start       =    obj$par,
+                                                         objective   =    obj$fn,
+                                                         gradient    =    obj$gr,
+                                                         lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
+                                                         upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
+                                                         control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))))
   png( file="Benchmark.png", width=6, height=6, res=200, units="in")
     plot(ben)
   dev.off()
@@ -363,7 +366,7 @@ cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "
 brks <- c(seq(min(error.values), 0, length = 15), 0, seq(0, max(error.values),length = 15))[-c(15, 16)]
 plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
 ## 9
-plot.new()
+plot(x = e_inla_r[[1]], y = e_tmb_r[[1]], xlab = "inla error", ylab="tmb error");abline(a = 0, b= 1)
 ## 10
 plot(sd_tmb_r[[1]],main='TMB SD',zlim=c(smn,smx))
 points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
