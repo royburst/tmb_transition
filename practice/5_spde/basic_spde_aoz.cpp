@@ -36,7 +36,7 @@ Type objective_function<Type>::operator() ()
 
   // Random effects
   PARAMETER_ARRAY(epsilon);
-  PARAMETER_ARRAY(sp);
+  //PARAMETER_ARRAY(sp);
 
 
   // objective function -- joint negative log-likelihood

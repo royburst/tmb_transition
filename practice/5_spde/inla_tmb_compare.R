@@ -24,7 +24,7 @@ source('utils.R')
 ## SIMULATE AND SET UP THE DATA
 ## Simulate a surface, this returns a list of useful objects like samples and truth
 simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness parameter (alpha in INLA speak)
-                  betas      = c(-3,-1)        ,  ##  Intercept coef and covariate coef For Linear predictors
+                  betas      = c(-3,-1,.5)        ,  ##  Intercept coef and covariate coef For Linear predictors
                   scale      = .1              ,  ##  Matern scale eparameter
                   Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
                   rho        = 0.9             ,  ##  AR1 term
@@ -33,7 +33,7 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
                   mean.exposure.months = 200 ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
-                  ncovariates = 1              ,  ##  how many covariates to include?
+                  ncovariates = 2              ,  ##  how many covariates to include?
                   seed   = NULL                ,
                   returnall=TRUE                )
 
@@ -83,7 +83,7 @@ Data = list(n_i=nrow(dt),                   ## Total number of observations
             G2=spde$param.inla$M2)          ## SPDE sparse matrix
             #spde=(spde$param.inla)[c('M1','M2','M3')])
 
-Data$options = 0
+Data$options = 1
 
 ## staring values for parameters
 Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parameters alphas
@@ -96,7 +96,7 @@ Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parame
 ### FIT MODEL
 ## Make object
 ## Compile
-templ <- "basic_spde" #spde2
+templ <- "basic_spde" # _aoz" #spde2
 TMB::compile(paste0(templ,".cpp"))
 dyn.load( dynlib(templ) )
 
@@ -132,7 +132,8 @@ opt0 <- do.call("nlminb",list(start       =    obj$par,
                               gradient    =    obj$gr,
                               lower       =    lower,
                               upper       =    upper,
-                              control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
+                              control     =    list(eval.max=1e4, iter.max=1e4, trace=1, rel.tol=.01,step.max=10)))
+
 proc.time() - ptm
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
 ## head(summary(SD0))
@@ -161,8 +162,8 @@ SD0 = sdreport(obj,getReportCovariance=TRUE)
 
 ##### Prediction
 message('making predictions')
-#mu    <- c(SD0$par.fixed[names(SD0$par.fixed)=='alpha'],SD0$par.random[names(SD0$par.random)=="epsilon"]) # shouldnt this be Epsilon_xt as reported by ADREPORT???
-mu    <- c(SD0$value) # shouldnt this be Epsilon_xt as reported by ADREPORT???
+#mu    <- c(SD0$par.fixed[names(SD0$par.fixed)=='alpha'],SD0$par.random[names(SD0$par.random)=="epsilon"])
+mu    <- c(SD0$value)
 
 sigma <- SD0$cov
 
