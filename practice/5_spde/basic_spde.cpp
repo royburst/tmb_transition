@@ -82,10 +82,10 @@ Type objective_function<Type>::operator() ()
   }
   // Probability of Gaussian-Markov random fields (GMRFs)
      if(n_t > 1 ){
-       PARALLEL_REGION jnll_comp += SCALE(SEPARABLE(AR1(rho),GMRF(Q)),1/exp(log_tau_E))(epsilon);
+        jnll_comp += SCALE(SEPARABLE(AR1(rho),GMRF(Q)),1/exp(log_tau_E))(epsilon);
 
      } else {
-       PARALLEL_REGION jnll_comp += SCALE(GMRF(Q),1/exp(log_tau_E))(epsilon);
+        jnll_comp += SCALE(GMRF(Q),1/exp(log_tau_E))(epsilon);
 
      }
 
@@ -104,7 +104,7 @@ Type objective_function<Type>::operator() ()
 //THIS LINE CAUSED THE BUG:    Epsilon_xt(x_s(s_i(i)),t_i(i)) = epsilon(x_s(s_i(i)),t_i(i))/exp(log_tau_E);
     mrprob(i) = linear_x(x_s(s_i(i))) + Epsilon_xt(x_s(s_i(i)),t_i(i));
     if( !isNA(c_i(i)) ){
-       PARALLEL_REGION jnll_comp -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
+        jnll_comp -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
     // TEST   PARALLEL_REGION jnll_comp[1] -= dpois(  c_i(i), invlogit(mrprob(i)) * Exp_i(i), true);
     }
   }
