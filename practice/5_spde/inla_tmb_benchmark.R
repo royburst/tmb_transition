@@ -20,8 +20,8 @@ setwd(paste0(dir,"/practice/5_spde"))
 source('utils.R')
 
 
-n_clusters  <- as.numeric(commandArgs()[4])
-namei       <- as.numeric(commandArgs()[5])
+n_clusters  <- as.numeric(commandArgs()[3])
+namei       <- as.numeric(commandArgs()[4])
 
 ###############################################################
 ## SIMULATE AND SET UP THE DATA
