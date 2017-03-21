@@ -70,6 +70,7 @@ Type objective_function<Type>::operator() ()
   matrix<Type> Epsilon_xt(n_x, n_t);
 
   // Priors
+  if( options == 1){
    jnll_comp[2] -= dnorm(log_tau_E, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_tau
    jnll_comp[2] -= dnorm(log_kappa, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_kappa
    jnll_comp[2] -= dnorm(rho_trans, Type(0.0), Type(2.582), true); // N(0, sqrt(1/.15) prior on log((1+rho)/(1-rho))
@@ -77,8 +78,7 @@ Type objective_function<Type>::operator() ()
        printf("This is alpha %d\n", i);
       jnll_comp[2] -= dnorm(alpha(i), Type(0.0), Type(100), true); // N(0, sqrt(1/.0001)) prior for fixed effects.
    }
-
-
+ } 
   // Probability of Gaussian-Markov random fields (GMRFs)
      if(n_t > 1 ){
        PARALLEL_REGION jnll_comp[0] += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
