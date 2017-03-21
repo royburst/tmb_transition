@@ -126,35 +126,37 @@ if(nperiod == 1){
 obj <- MakeADFun(data=Data, parameters=Parameters, map=mapout, random="epsilon", hessian=TRUE, DLL=templ)
 
 ## Run optimizer
-ptm <- proc.time()
+ptm <- proc.time()[3]
 opt0 <- do.call("nlminb",list(start       =    obj$par,
                         objective   =    obj$fn,
                         gradient    =    obj$gr,
                         lower       =    lower,
                         upper       =    upper,
-                        control     =    list(eval.max=1e4, iter.max=1e4, trace=1, rel.tol=.01,step.max=10)))
-proc.time() - ptm
+                        control     =    list(rel.tol=0.001, step.min=0.001))) # eval.max=1e4, iter.max=1e4, trace=1, step.max=10
+tmb_fit_time <- proc.time()[3] - ptm
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
 ## head(summary(SD0))
 
 
 # try benchmarking
 if(T==F){
-  ben <- benchmark(obj, n=1, cores=seq(1,12,3), expr=expression(do.call("nlminb",list(start       =    obj$par,
+  ben <- benchmark(obj, n=1, cores=seq(1,10,by=2), expr=expression(do.call("nlminb",list(start       =    obj$par,
                           objective   =    obj$fn,
                           gradient    =    obj$gr,
-                          lower       =    c(rep(-20,sum(names(obj$par)=='alpha')),rep(-10,2),-0.999),
-                          upper       =    c(rep(20 ,sum(names(obj$par)=='alpha')),rep( 10,2), 0.999),
+                          lower       =    lower,
+                          upper       =    upper,
                           control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))))
   png( file="Benchmark.png", width=6, height=6, res=200, units="in")
-    plot(ben)
+  plot(ben)
   dev.off()
 }
 
 # Get standard errors
 ## Report0 = obj$report()
+ptm <- proc.time()[3]
 SD0 = sdreport(obj,getReportCovariance=TRUE)
 ## fe_var_covar <- SD0$cov.fixed
+tmb_sdreport_time <- proc.time()[3] - ptm
 
 ##### Prediction
 message('making predictions')
@@ -207,6 +209,7 @@ pred_tmp <- cell_l + cell_s
 ## make them into time bins
 len = nrow(pred_tmp)/nperiod
 
+tmb_totalpredict_time <- proc.time()[3] - ptm
 
 ## eras_tmb <- rasterFromXYZT(data.table(pcoords,p=e,t=rep(1:nperiod,each=len)),"p","t")
 
@@ -238,6 +241,7 @@ formula(paste0('died ~ -1+int+',
                    group = space.group,
                    control.group = list(model = \'ar1\'))'
 ))
+ptm <- proc.time()[3]
 res_fit <- inla(formula,
                 data = inla.stack.data(stack.obs),
                 control.predictor = list(A = inla.stack.A(stack.obs),
@@ -247,12 +251,13 @@ res_fit <- inla(formula,
                 control.inla = list(int.strategy = 'eb', h = 1e-3, tolerance = 1e-6),
                 control.compute=list(config = TRUE),
                 family = 'binomial',
-                num.threads = 1,
+                num.threads = 10,
                 Ntrials = dt$exposures,
                 verbose = TRUE,
                 keep = TRUE)
+inla_fit_time <- proc.time()[3] - ptm
 
-
+ptm <- proc.time()[3]
 draws <- inla.posterior.sample(ndraws, res_fit)
 
 ## get parameter names
@@ -286,6 +291,7 @@ pred_inla <- s+l
 
 ## make them into time bins
 len = nrow(pred_inla)/nperiod
+inla_totalpredict_time <- proc.time()[3] - ptm
 
 
 
