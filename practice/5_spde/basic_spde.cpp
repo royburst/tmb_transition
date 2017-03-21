@@ -47,11 +47,12 @@ Type objective_function<Type>::operator() ()
 
   // objective function -- joint negative log-likelihood
   using namespace density;
-  vector<Type> jnll_comp(3);
-  jnll_comp[0] = Type(0);
-  jnll_comp[1] = Type(0);
-  jnll_comp[2] = Type(0);
-    parallel_accumulator<Type> jnll_comp[1](this);
+  //vector<Type> jnll_comp(3);
+  //jnll_comp[0] = Type(0);
+  //jnll_comp[1] = Type(0);
+  //jnll_comp[2] = Type(0);
+  //  parallel_accumulator<Type> jnll_comp[1](this);
+  parallel_accumulator<Type> jnll_comp(this);
   max_parallel_regions = omp_get_max_threads();
   printf("This is thread %d\n", max_parallel_regions);
 
@@ -71,20 +72,20 @@ Type objective_function<Type>::operator() ()
 
   // Priors
   if(options[0] == 1) {
-   jnll_comp[2] -= dnorm(log_tau_E, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_tau
-   jnll_comp[2] -= dnorm(log_kappa, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_kappa
-   jnll_comp[2] -= dnorm(rho_trans, Type(0.0), Type(2.582), true); // N(0, sqrt(1/.15) prior on log((1+rho)/(1-rho))
+   jnll_comp -= dnorm(log_tau_E, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_tau
+   jnll_comp -= dnorm(log_kappa, Type(0.0), Type(1.0), true);  // N(0,1) prior for log_kappa
+   jnll_comp -= dnorm(rho_trans, Type(0.0), Type(2.582), true); // N(0, sqrt(1/.15) prior on log((1+rho)/(1-rho))
    for( int i=0; i<alpha.size(); i++){
-       printf("This is alpha %d\n", i);
-      jnll_comp[2] -= dnorm(alpha(i), Type(0.0), Type(100), true); // N(0, sqrt(1/.0001)) prior for fixed effects.
+    //   printf("This is alpha %d\n", i);
+      jnll_comp -= dnorm(alpha(i), Type(0.0), Type(100), true); // N(0, sqrt(1/.0001)) prior for fixed effects.
    }
   }
   // Probability of Gaussian-Markov random fields (GMRFs)
      if(n_t > 1 ){
-       PARALLEL_REGION jnll_comp[0] += SCALE(SEPARABLE(AR1(rho),GMRF(Q)),1/exp(log_tau_E))(epsilon);
+       PARALLEL_REGION jnll_comp += SCALE(SEPARABLE(AR1(rho),GMRF(Q)),1/exp(log_tau_E))(epsilon);
 
      } else {
-       PARALLEL_REGION jnll_comp[0] += SCALE(GMRF(Q),1/exp(log_tau_E))(epsilon);
+       PARALLEL_REGION jnll_comp += SCALE(GMRF(Q),1/exp(log_tau_E))(epsilon);
 
      }
 
@@ -103,7 +104,7 @@ Type objective_function<Type>::operator() ()
 //THIS LINE CAUSED THE BUG:    Epsilon_xt(x_s(s_i(i)),t_i(i)) = epsilon(x_s(s_i(i)),t_i(i))/exp(log_tau_E);
     mrprob(i) = linear_x(x_s(s_i(i))) + Epsilon_xt(x_s(s_i(i)),t_i(i));
     if( !isNA(c_i(i)) ){
-       PARALLEL_REGION jnll_comp[1] -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
+       PARALLEL_REGION jnll_comp -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
     // TEST   PARALLEL_REGION jnll_comp[1] -= dpois(  c_i(i), invlogit(mrprob(i)) * Exp_i(i), true);
     }
   }
