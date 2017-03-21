@@ -81,9 +81,13 @@ Type objective_function<Type>::operator() ()
 
   // Probability of Gaussian-Markov random fields (GMRFs)
      if(n_t > 1 ){
-       PARALLEL_REGION jnll_comp[0] += SCALE(SEPARABLE(AR1(rho),GMRF(Q)),1/exp(log_tau_E))(epsilon);
+       PARALLEL_REGION jnll_comp[0] += SEPARABLE(AR1(rho),GMRF(Q))(epsilon);
+       //PARALLEL_REGION jnll_comp[0] += SCALE(SEPARABLE(AR1(rho),GMRF(Q)),1/exp(log_tau_E))(epsilon);
+
      } else {
-       PARALLEL_REGION jnll_comp[0] += SCALE(GMRF(Q),1/exp(log_tau_E))(epsilon);
+       PARALLEL_REGION jnll_comp[0] += GMRF(Q)(epsilon);
+       //PARALLEL_REGION jnll_comp[0] += SCALE(GMRF(Q),1/exp(log_tau_E))(epsilon);
+
      }
 
 
