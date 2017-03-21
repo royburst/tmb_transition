@@ -108,7 +108,7 @@ Type objective_function<Type>::operator() ()
     // TEST   PARALLEL_REGION jnll_comp[1] -= dpois(  c_i(i), invlogit(mrprob(i)) * Exp_i(i), true);
     }
   }
-  Type jnll = jnll_comp.sum();
+  //Type jnll = jnll_comp.sum();
 
 
   // Diagnostics
@@ -121,5 +121,5 @@ Type objective_function<Type>::operator() ()
   ADREPORT( Epsilon_xt );
 
 
-  return jnll;
+  return jnll_comp;
 }
