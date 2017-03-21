@@ -103,8 +103,8 @@ Type objective_function<Type>::operator() ()
 //THIS LINE CAUSED THE BUG:    Epsilon_xt(x_s(s_i(i)),t_i(i)) = epsilon(x_s(s_i(i)),t_i(i))/exp(log_tau_E);
     mrprob(i) = linear_x(x_s(s_i(i))) + Epsilon_xt(x_s(s_i(i)),t_i(i));
     if( !isNA(c_i(i)) ){
-    //   PARALLEL_REGION jnll_comp[1] -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
-       PARALLEL_REGION jnll_comp[1] -= dpois(  c_i(i), invlogit(mrprob(i)) * Exp_i(i), true);
+       PARALLEL_REGION jnll_comp[1] -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
+    // TEST   PARALLEL_REGION jnll_comp[1] -= dpois(  c_i(i), invlogit(mrprob(i)) * Exp_i(i), true);
     }
   }
   Type jnll = jnll_comp.sum();
