@@ -21,7 +21,7 @@ source('utils.R')
 
 
 n_clusters  <- as.numeric(commandArgs()[4])
-name        <- as.numeric(commandArgs()[5])
+namei       <- as.numeric(commandArgs()[5])
 
 ###############################################################
 ## SIMULATE AND SET UP THE DATA
@@ -305,5 +305,8 @@ res <- data.table(n_clusters=n_clusters,
                   tmb_sdreport_time=tmb_sdreport_time,
                   tmb_totalpredict_time=tmb_totalpredict_time)
 
-
-fwrite(res,sprintf('benchmarkoutput/%i_%i.csv',n_clusters,name))
+message(n_clusters)
+message(namei)
+class(n_clusters)
+class(namei)
+fwrite(res,sprintf('benchmarkoutput/%i_%i.csv',n_clusters,namei))
