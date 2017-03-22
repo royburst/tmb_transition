@@ -1,4 +1,3 @@
-
 rm(list=ls())
 gc()
 options(scipen=999)
@@ -15,6 +14,7 @@ library(raster)
 dir <- paste0("/homes/",Sys.info()['user'],"/tmb_transition")
 system(paste0('cd ',dir,'\ngit pull origin aoz_dev'))
 setwd(paste0(dir,"/practice/5_spde"))
+## source("./inla_tmb_compare.R")
 
 ## source some functions made for this bit
 source('utils.R')
@@ -31,7 +31,7 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   l          = 250             ,  ##  Matrix Length
                   n_clusters = 500           ,  ##  number of clusters sampled ]
                   n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
-                  mean.exposure.months = 200 ,  ##  mean exposure months per cluster
+                  mean.exposure.months = 5000 ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 2              ,  ##  how many covariates to include?
                   seed   = NULL                ,
@@ -59,14 +59,24 @@ spde <- inla.spde2.matern( mesh_s,alpha=2 ) ## Build SPDE object using INLA (mus
 ## \Sigma^{-1} = \kappa^4 M_0 + 2\kappa^2M_1 + M_2
 ## M_2 = M_1M_0^{-1}M_1
 ## Where the Ms are all sparse matrices stored as "dgTMatrix"
-# names(spde$param.inla)
+## names(spde$param.inla)
+
+## setup prediction mesh needed to get fomr mesh to data locations within tmb function
+## get surface to project on to
+data.coords = cbind(x=simobj$d$x, x=simobj$d$y)
+data.periods <- simobj$d$period
+
+## use inla helper functions to project the spatial effect from mesh points to data points
+A.proj <- inla.spde.make.A(mesh  = mesh_s,
+                           loc   = data.coords,
+                           group = data.periods)
 
 
 ## pull covariate(s) at mesh knots
 covs <- raster::extract(simobj$cov.raster,cbind(mesh_s$loc[,1],mesh_s$loc[,2]))
 
 ## Data to pass to TMB
-X_xp = cbind( 1, covs)
+X_xp = cbind( 1, covs)g
 
 Data = list(n_i=nrow(dt),                   ## Total number of observations
             n_x=mesh_s$n,                   ## Number of vertices in SPDE mesh
@@ -80,7 +90,8 @@ Data = list(n_i=nrow(dt),                   ## Total number of observations
             X_xp=X_xp,                      ## Covariate design matrix
             G0=spde$param.inla$M0,          ## SPDE sparse matrix
             G1=spde$param.inla$M1,          ## SPDE sparse matrix
-            G2=spde$param.inla$M2)          ## SPDE sparse matrix
+            G2=spde$param.inla$M2,          ## SPDE sparse matrix
+            Apred = A.pred)                 ## mesh to prediction point projection matrix
             #spde=(spde$param.inla)[c('M1','M2','M3')])
 
 Data$options = 1
@@ -346,9 +357,11 @@ points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 ## 2
 plot(as.vector(sd_tmb_r[[1]]),as.vector(sd_inla_r[[1]]), col = rainbow(11)[cut(pcoords[, 1], breaks = 10)], main = "Color by X")
 legend("bottomright", legend = unique(cut(pcoords[, 1], breaks = 10)), col = rainbow(11), pch = 16)
+abline(a = 0, b = 1)
 ## 3
 plot(as.vector(sd_tmb_r[[1]]),as.vector(sd_inla_r[[1]]), col = rainbow(11)[cut(pcoords[, 2], breaks = 10)], main = "Color by Y")
 legend("bottomright", legend = unique(cut(pcoords[, 2], breaks = 10)), col = rainbow(11), pch = 16)
+abline(a = 0, b = 1)
 ## 4
 plot(m_tmb_r[[1]],main='MEDIAN TMB',zlim=c(mmn,mmx))
 ## 5
