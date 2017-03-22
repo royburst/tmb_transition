@@ -24,7 +24,7 @@ source('utils.R')
 ## SIMULATE AND SET UP THE DATA
 ## Simulate a surface, this returns a list of useful objects like samples and truth
 simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness parameter (alpha in INLA speak)
-                  betas      = c(-3,-1,.5)        ,  ##  Intercept coef and covariate coef For Linear predictors
+                  betas      = c(-3,-1,1,1)        ,  ##  Intercept coef and covariate coef For Linear predictors
                   scale      = .1              ,  ##  Matern scale eparameter
                   Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
                   rho        = 0.9             ,  ##  AR1 term
@@ -33,9 +33,10 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
                   mean.exposure.months = 200 ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
-                  ncovariates = 2              ,  ##  how many covariates to include?
+                  ncovariates = 3              ,  ##  how many covariates to include?
                   seed   = NULL                ,
-                  returnall=TRUE                )
+                  returnall=TRUE                ,
+                  tvc     = FALSE) # time varying covariates. either way returns an nperiod length list of covariate rasters (if no tvc, they are dups)
 
 
 ## get samples from which to fit
@@ -61,9 +62,12 @@ spde <- inla.spde2.matern( mesh_s,alpha=2 ) ## Build SPDE object using INLA (mus
 ## Where the Ms are all sparse matrices stored as "dgTMatrix"
 # names(spde$param.inla)
 
-
 ## pull covariate(s) at mesh knots
-covs <- raster::extract(simobj$cov.raster,cbind(mesh_s$loc[,1],mesh_s$loc[,2]))
+covs <- raster::extract(simobj$cov.raster.list[[1]],cbind(mesh_s$loc[,1],mesh_s$loc[,2]))
+
+#### NOTE ABOVE: TO CHANGE WHEN AARON SETS UP MESH IN LIKELIHOOD, RIGHT NOW ONLY TAKING FIRST YEARS VALUES, INCORRECT,
+    ## LATER ON X_xp WILL BE STRAIGHT FROM dt SO THIS STEP WILL BE UNNECESSARY
+
 
 ## Data to pass to TMB
 X_xp = cbind( 1, covs)
@@ -190,19 +194,14 @@ A.pred <- inla.spde.make.A(
 ## values of S at each cell (long by nperiods)
 cell_s <- as.matrix(A.pred %*% epsilon_draws)
 
-## extract cell values  from covariates
-vals <- extract(simobj$cov.raster, pcoords[1:(nrow(simobj$fullsamplespace)/nperiod),])
-vals <- (cbind(int = 1, vals))
-
-cell_ll <- vals %*% alpha_draws
-message('assuming no time varying covariates')
-i=1
-cell_l <- cell_ll
-while(i < nperiod){
-  message(i)
-  cell_l <- rbind(cell_l,cell_ll)
-  i=i+1
+## extract cell values  from covariates, deal with timevarying covariates here
+vals <- list()
+for(p in 1:nperiod){
+  vals[[p]] <- extract(simobj$cov.raster.list[[p]], pcoords[1:(nrow(simobj$fullsamplespace)/nperiod),])
+  vals[[p]] <- (cbind(int = 1, vals[[p]]))
+  vals[[p]] <- vals[[p]] %*% alpha_draws # same as getting cell_ll for each time period
 }
+cell_l <- do.call(rbind,vals)
 
 ## add together linear and st components
 pred_tmp <- cell_l + cell_s
@@ -264,7 +263,7 @@ draws <- inla.posterior.sample(ndraws, res_fit)
 par_names <- rownames(draws[[1]]$latent)
 
 ## index to spatial field and linear coefficient samples
-s_idx <- grep('^s.*', par_names)
+s_idx <- grep('^space.*', par_names)
 l_idx <- match(sprintf('%s.1', res_fit$names.fixed),
                par_names)
 
@@ -284,8 +283,18 @@ s <- as.matrix(s)
 
 
 ## predict out linear effects
-vals=as.matrix(cbind(int=1,sspc[,simobj$fe.name,with=F]))
-l <- vals %*% pred_l
+## extract cell values  from covariates, deal with timevarying covariates here
+vals <- list()
+for(p in 1:nperiod){
+  vals[[p]] <- extract(simobj$cov.raster.list[[p]], pcoords[1:(nrow(simobj$fullsamplespace)/nperiod),])
+  vals[[p]] <- (cbind(int = 1, vals[[p]]))
+  vals[[p]] <- vals[[p]] %*% pred_l # same as getting cell_ll for each time period
+}
+l <- do.call(rbind,vals)
+
+
+#vals=as.matrix(cbind(int=1,sspc[,simobj$fe.name,with=F]))
+#l <- vals %*% pred_l
 
 pred_inla <- s+l
 
