@@ -36,7 +36,7 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   ncovariates = 3              ,  ##  how many covariates to include?
                   seed   = NULL                ,
                   returnall=TRUE                ,
-                  tvc     = FALSE) # time varying covariates. either way returns an nperiod length list of covariate rasters (if no tvc, they are dups)
+                  tvc     = TRUE) # time varying covariates. either way returns an nperiod length list of covariate rasters (if no tvc, they are dups)
 
 
 ## get samples from which to fit
@@ -71,6 +71,8 @@ covs <- raster::extract(simobj$cov.raster.list[[1]],cbind(mesh_s$loc[,1],mesh_s$
 
 ## Data to pass to TMB
 X_xp = cbind( 1, covs)
+#X_xp = cbind(1, dt[,names(simobj$cov.raster.list[[1]]),with=FALSE])
+
 
 Data = list(n_i=nrow(dt),                   ## Total number of observations
             n_x=mesh_s$n,                   ## Number of vertices in SPDE mesh
