@@ -76,7 +76,7 @@ A.proj <- inla.spde.make.A(mesh  = mesh_s,
 covs <- raster::extract(simobj$cov.raster,cbind(mesh_s$loc[,1],mesh_s$loc[,2]))
 
 ## Data to pass to TMB
-X_xp = cbind( 1, covs)g
+X_xp = cbind( 1, covs)
 
 Data = list(n_i=nrow(dt),                   ## Total number of observations
             n_x=mesh_s$n,                   ## Number of vertices in SPDE mesh

@@ -98,13 +98,13 @@ Type objective_function<Type>::operator() ()
   for(int x=0; x<n_x; x++){
     for(int t=0; t<n_t; t++){
       Epsilon_xt(x,t) = epsilon(x,t) / exp(log_tau_E); // scale it // we probably don't need this anymore
-      epsilon_vec[(i + n_x*t)] = Epsilon_xt(x,t); // put in a vector
+      epsilon_vec[(x + n_x*t)] = Epsilon_xt(x,t); // put in a vector
     }
   }
 
 
   // Project from mesh points to data points
-  proj_epsilon = Aproj * epsilon_vec.matrix()
+  proj_epsilon = Aproj * epsilon_vec.matrix();
 
   // Likelihood contribution from observations
   linear_x = X_xp * alpha.matrix();
