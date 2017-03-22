@@ -29,9 +29,9 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
                   rho        = 0.9             ,  ##  AR1 term
                   l          = 250             ,  ##  Matrix Length
-                  n_clusters = 500           ,  ##  number of clusters sampled ]
+                  n_clusters = 50           ,  ##  number of clusters sampled ]
                   n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
-                  mean.exposure.months = 5000 ,  ##  mean exposure months per cluster
+                  mean.exposure.months = 100 ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 2              ,  ##  how many covariates to include?
                   seed   = NULL                ,
@@ -91,10 +91,9 @@ Data = list(n_i=nrow(dt),                   ## Total number of observations
             G0=spde$param.inla$M0,          ## SPDE sparse matrix
             G1=spde$param.inla$M1,          ## SPDE sparse matrix
             G2=spde$param.inla$M2,          ## SPDE sparse matrix
-            Apred = A.pred)                 ## mesh to prediction point projection matrix
+            Aproj = A.proj,                 ## mesh to prediction point projection matrix
+            options = c(1))                 ## option1==1 use priors
             #spde=(spde$param.inla)[c('M1','M2','M3')])
-
-Data$options = 1
 
 ## staring values for parameters
 Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parameters alphas
@@ -390,7 +389,7 @@ points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 ## 12
 cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
 brks <- c(seq(min(values(sd_diff_r)), 0, length = 15), 0, seq(0, max(values(sd_diff_r)),length = 15))[-c(15, 16)]
-plot(sd_diff_r[[1]],main='SD DIFFERENCE', col = cls, breaks = brks)
+plot(sd_diff_r[[1]], main='SD DIFFERENCE', col = cls, breaks = brks)
 points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 
 dev.off()
