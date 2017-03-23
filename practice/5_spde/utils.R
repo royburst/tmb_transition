@@ -365,7 +365,7 @@ getsimdata <- function(simobj){ # so is a list returned from mortsim
 ## Fit and Predict from TMB
 fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
                             cores = 1, # need to debug parallel
-                            draws = 50,
+                            ndraws = 50,
                             fixsigma = FALSE, # posdef thing, will change cov
                             bias.correct= TRUE,
                             simdata){ # returned from getsimdata
@@ -440,6 +440,7 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
       i <- 0
       sigma2 <- sigma
       while(!is.positive.definite(sigma2) & i < 6){
+        message(i)
         sigma2 <- round(sigma2, 10 - i)
         i <- i + 1
       }
