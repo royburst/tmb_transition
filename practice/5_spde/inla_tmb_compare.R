@@ -1,4 +1,3 @@
-
 rm(list=ls())
 gc()
 options(scipen=999)
@@ -13,8 +12,9 @@ library(raster)
 ## need to set to same directory as the template file, also pull from git
 ## Clone the git directory to your H drive and this should work for anyone
 dir <- paste0("/homes/",Sys.info()['user'],"/tmb_transition")
-system(paste0('cd ',dir,'\ngit pull origin develop'))
+system(paste0('cd ',dir,'\ngit pull origin aoz_dev'))
 setwd(paste0(dir,"/practice/5_spde"))
+## source("./inla_tmb_compare.R")
 
 ## source some functions made for this bit
 source('utils.R')
@@ -28,10 +28,10 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   scale      = .1              ,  ##  Matern scale eparameter
                   Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
                   rho        = 0.9             ,  ##  AR1 term
-                  l          = 51              ,  ##  Matrix Length
-                  n_clusters = 50           ,  ##  number of clusters sampled ]
+                  l          = 250             ,  ##  Matrix Length
+                  n_clusters = 500           ,  ##  number of clusters sampled ]
                   n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
-                  mean.exposure.months = 200 ,  ##  mean exposure months per cluster
+                  mean.exposure.months = 100 ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 3              ,  ##  how many covariates to include?
                   seed   = NULL                ,
@@ -49,10 +49,11 @@ nperiod  <- length(unique(dt$period))
 
 ## MESH For now use same mesh per time point
 ## TODO CHANGE THIS
-mesh_s <- inla.mesh.2d(
-  loc=coords,
-  max.edge=c(0.2,0.2),
-  cutoff=0.05)
+data.boundary <- cbind(c(0, 0, 1, 1), c(0, 1, 1, 0))
+mesh_s <- inla.mesh.2d(,
+                       data.boundary,
+                       max.edge=c(0.2,0.2),
+                       cutoff=0.05)
 
 nodes <- mesh_s$n ## get number of mesh nodes
 spde <- inla.spde2.matern( mesh_s,alpha=2 ) ## Build SPDE object using INLA (must pass mesh$idx$loc when supplying Boundary)
@@ -60,25 +61,32 @@ spde <- inla.spde2.matern( mesh_s,alpha=2 ) ## Build SPDE object using INLA (mus
 ## \Sigma^{-1} = \kappa^4 M_0 + 2\kappa^2M_1 + M_2
 ## M_2 = M_1M_0^{-1}M_1
 ## Where the Ms are all sparse matrices stored as "dgTMatrix"
-# names(spde$param.inla)
+## names(spde$param.inla)
+
+## setup prediction mesh needed to get fomr mesh to data locations within tmb function
+## get surface to project on to
+data.coords = cbind(x=simobj$d$x, x=simobj$d$y)
+data.periods <- simobj$d$period
+
+## use inla helper functions to project the spatial effect from mesh points to data points
+A.proj <- inla.spde.make.A(mesh  = mesh_s,
+                           loc   = data.coords,
+                           group = data.periods)
 
 ## pull covariate(s) at mesh knots
-covs <- raster::extract(simobj$cov.raster.list[[1]],cbind(mesh_s$loc[,1],mesh_s$loc[,2]))
-
+## covs <- raster::extract(simobj$cov.raster.list[[1]],cbind(mesh_s$loc[,1],mesh_s$loc[,2]))
 #### NOTE ABOVE: TO CHANGE WHEN AARON SETS UP MESH IN LIKELIHOOD, RIGHT NOW ONLY TAKING FIRST YEARS VALUES, INCORRECT,
     ## LATER ON X_xp WILL BE STRAIGHT FROM dt SO THIS STEP WILL BE UNNECESSARY
 
-
 ## Data to pass to TMB
-X_xp = cbind( 1, covs)
-#X_xp = cbind(1, dt[,names(simobj$cov.raster.list[[1]]),with=FALSE])
+X_xp = as.matrix(cbind(1, dt[,names(simobj$cov.raster.list[[1]]),with=FALSE]))
 
 
 Data = list(n_i=nrow(dt),                   ## Total number of observations
             n_x=mesh_s$n,                   ## Number of vertices in SPDE mesh
             n_t=nperiod,                    ## Number of periods
             n_p=ncol(X_xp),                 ## Number of columns in covariate matrix X
-            x_s=mesh_s$idx$loc-1,           ## Association of each cluster with a given vertex in SPDE mesh
+##            x_s=mesh_s$idx$loc-1,           ## Association of each cluster with a given vertex in SPDE mesh
             c_i=dt$deaths,                  ## Number of observed deaths in the cluster (N+ in binomial likelihood)
             Exp_i=dt$exposures,             ## Number of observed exposures in the cluster (N in binomial likelihood)
             s_i=dt$id-1,                    ## no site specific effect in my model (different sampling locations in time)
@@ -86,10 +94,10 @@ Data = list(n_i=nrow(dt),                   ## Total number of observations
             X_xp=X_xp,                      ## Covariate design matrix
             G0=spde$param.inla$M0,          ## SPDE sparse matrix
             G1=spde$param.inla$M1,          ## SPDE sparse matrix
-            G2=spde$param.inla$M2)          ## SPDE sparse matrix
+            G2=spde$param.inla$M2,          ## SPDE sparse matrix
+            Aproj = A.proj,                 ## mesh to prediction point projection matrix
+            options = c(1))                 ## option1==1 use priors
             #spde=(spde$param.inla)[c('M1','M2','M3')])
-
-Data$options = 1
 
 ## staring values for parameters
 Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parameters alphas
@@ -134,12 +142,14 @@ obj <- MakeADFun(data=Data, parameters=Parameters, map=mapout, random="epsilon",
 ## Run optimizer
 ptm <- proc.time()[3]
 opt0 <- do.call("nlminb",list(start       =    obj$par,
-                        objective   =    obj$fn,
-                        gradient    =    obj$gr,
-                        lower       =    lower,
-                        upper       =    upper,
-                        control     =    list(rel.tol=0.001, step.min=0.001))) # eval.max=1e4, iter.max=1e4, trace=1, step.max=10
+                              objective   =    obj$fn,
+                              gradient    =    obj$gr,
+                              lower       =    lower,
+                              upper       =    upper,
+                              control     =    list(eval.max=1e4, iter.max=1e4, trace=1, rel.tol=.01,step.max=10)))
+
 tmb_fit_time <- proc.time()[3] - ptm
+
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
 ## head(summary(SD0))
 
@@ -175,6 +185,36 @@ sigma <- SD0$cov
 require(MASS)
 npar   <- length(mu)
 ndraws <- 50
+
+## make sigma symmetric
+require(matrixcalc)
+i <- 0
+while(!is.symmetric.matrix(sigma)){
+  sigma <- round(sigma, 10 - i)
+  i <- i + 1
+}
+message(sprintf("rounded sigma to %i decimals to make it symmetric", 10 - i - 1))
+
+## round more or add to diagonal to make sigma pos-def
+i <- 0
+sigma2 <- sigma
+while(!is.positive.definite(sigma2) & i < 6){
+  sigma2 <- round(sigma2, 10 - i)
+  i <- i + 1
+}
+if(is.positive.definite(sigma2)){
+  sigma <- sigma2
+  message(sprintf("rounded sigma to %i decimals to make it pos-def", 10 - i - 1))
+}else{
+  i <- 0
+  while(!is.positive.definite(sigma)){
+    sigma <- sigma + diag(1, nrow(sigma))
+    i <- i + 1
+  }
+  message(sprintf("added %i to the diagonal to make sigma pos-def", i))
+}
+
+## now we can take draws
 draws  <- t(mvrnorm(n=ndraws,mu=mu,Sigma=sigma))
 ## ^ look for a quicker way to do this..cholesky
 
@@ -339,12 +379,15 @@ smx <- max(c(summ_inla[,2],summ_tmb[,2]))
 mmn <- min(c(summ_inla[,1],summ_tmb[,1],truth))
 mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
 
+
 ## plot
-pdf('plot.pdf',height=20,width=16)
+print('making plots')
+require(grDevices)
+##pdf(sprintf('mean_error_tmb_inla_%i_clusts_%iexpMths_wo_priors.pdf', n.clust, n.expMths), height=20,width=16)
+pdf("plot.pdf", height=20,width=16)
 
 par(mfrow=c(4,3),
     mar = c(3, 3, 3, 9))
-
 
 truthr<- simobj$r.true.mr
 values(truthr) <- truth
@@ -352,24 +395,34 @@ values(truthr) <- truth
 ## 1
 plot(truthr[[1]],main='TRUTH',zlim=c(mmn,mmx))
 points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
+
 ## 2
 plot(as.vector(sd_tmb_r[[1]]),as.vector(sd_inla_r[[1]]), col = rainbow(11)[cut(pcoords[, 1], breaks = 10)], main = "Color by X")
 legend("bottomright", legend = unique(cut(pcoords[, 1], breaks = 10)), col = rainbow(11), pch = 16)
+abline(a = 0, b = 1)
 ## 3
 plot(as.vector(sd_tmb_r[[1]]),as.vector(sd_inla_r[[1]]), col = rainbow(11)[cut(pcoords[, 2], breaks = 10)], main = "Color by Y")
 legend("bottomright", legend = unique(cut(pcoords[, 2], breaks = 10)), col = rainbow(11), pch = 16)
+abline(a = 0, b = 1)
 ## 4
 plot(m_tmb_r[[1]],main='MEDIAN TMB',zlim=c(mmn,mmx))
 ## 5
 plot(m_inla_r[[1]],main='MEDIAN INLA',zlim=c(mmn,mmx))
 ## 6
-plot(m_diff_r[[1]],main='MEDIAN DIFFERENCE')
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(m_diff_r)), 0, length = 15), 0, seq(0, max(values(m_diff_r)),length = 15))[-c(15, 16)]
+plot(m_diff_r[[1]],main='MEDIAN DIFFERENCE', col = cls, breaks = brks)
 ## 7
-plot(e_tmb_r[[1]],main='TMB ERROR',zlim=c(emn,emx))
+error.values <- range(c(values(e_tmb_r), values(e_inla_r)))
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(error.values), 0, length = 15), 0, seq(0, max(error.values),length = 15))[-c(15, 16)]
+plot(e_tmb_r[[1]],main='TMB ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
 ## 8
-plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx))
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(error.values), 0, length = 15), 0, seq(0, max(error.values),length = 15))[-c(15, 16)]
+plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
 ## 9
-plot.new()
+plot(x = e_inla_r[[1]], y = e_tmb_r[[1]], xlab = "inla error", ylab="tmb error");abline(a = 0, b= 1)
 ## 10
 plot(sd_tmb_r[[1]],main='TMB SD',zlim=c(smn,smx))
 points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
@@ -377,6 +430,9 @@ points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 plot(sd_inla_r[[1]],main='INLA SD',zlim=c(smn,smx))
 points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 ## 12
-plot(sd_diff_r[[1]],main='SD DIFFERENCE')
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(sd_diff_r)), 0, length = 15), 0, seq(0, max(values(sd_diff_r)),length = 15))[-c(15, 16)]
+plot(sd_diff_r[[1]], main='SD DIFFERENCE', col = cls, breaks = brks)
+points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 
 dev.off()
