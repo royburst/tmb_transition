@@ -51,7 +51,7 @@ Type objective_function<Type>::operator() ()
   jnll_comp[0] = Type(0);
   jnll_comp[1] = Type(0);
   jnll_comp[2] = Type(0);
-  // parallel_accumulator<Type> jnll(this);
+  //  parallel_accumulator<Type> jnll_comp[1](this);
   max_parallel_regions = omp_get_max_threads();
   printf("This is thread %d\n", max_parallel_regions);
 

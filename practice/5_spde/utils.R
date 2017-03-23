@@ -67,7 +67,8 @@ mortsim <- function(
   extent = c(0,1,0,1)       ,  #  xmin,xmax,ymin,ymax
   ncovariates = 3           ,  #  how many covariates to include?
   seed   = NULL             ,
-  returnall=TRUE            ) {
+  returnall=TRUE            ,
+  tvc      =FALSE ) { # are there time varying covariates?
 
 
   require(fields)
@@ -93,8 +94,20 @@ mortsim <- function(
       cov.raster <- addLayer(cov.raster,makeRandomCovariate())
   names(cov.raster) <- paste0('X',1:ncovariates)
 
-  #plot(cov.raster,main="Theoretical Covariate")
-  ## TODO: Incorporate more realistic covariates
+  # Allow for the incorporation of time varying covariates
+  covs <- list(cov.raster)
+  if(n_periods > 1){
+    for(t in 2:n_periods){
+      # make ncovariates rasters with t*.1 surface, plus some noise
+      if(tvc ){
+        temp         <- cov.raster
+        values(temp) <- as.vector(temp)+t*0.1+rnorm(length(temp),0,0.001)
+        covs[[t]] <-temp
+      } else {
+        covs[[t]] <- cov.raster
+      }
+    }
+  }
 
   # make a l by l matrix (raster to sample from), exposures, and covariate values
   template<- raster(outer(seq(extent[1],extent[2], l = l),
@@ -110,12 +123,21 @@ mortsim <- function(
                 "period"=rep(1:n_periods,each=n_clusters),
                 'int'=1)
 
-  ## TODO: use pop data to get clumpier (and more realistic) sampling locations
+  ## Extract covariate values at data points
   datanames='int'
-  for(cov in 1:ncovariates){
-    d[,paste0('X',cov)]=raster::extract(cov.raster[[cov]],cbind(d$x,d$y)) # extract covariate value at sampling locations
-    datanames=c(datanames,paste0('X',cov))
+  dees <- list()
+  for(per in 1:n_periods){
+      dtmp <- d[d$period==per,]
+      locs <- cbind(dtmp$x,dtmp$y)
+      for(cov in 1:ncovariates){
+        dtmp[,paste0('X',cov)]=raster::extract(covs[[per]][[cov]],locs) # extract covariate value at sampling locations
+        datanames=c(datanames,paste0('X',cov))
+      }
+      dees[[per]] <- dtmp
   }
+  datanames=unique(datanames)
+  d <- do.call(rbind,dees)
+
 
   if(!is.null(seed)) set.seed(seed)
   # Define the matern object describing the underlying spatial model
@@ -201,7 +223,19 @@ mortsim <- function(
   true.mr=samplespace
 
   samplespace$int=1
-  samplespace=cbind(samplespace,raster::extract(cov.raster,cbind(samplespace$x,samplespace$y)))
+  #samplespace=cbind(samplespace,raster::extract(cov.raster,cbind(samplespace$x,samplespace$y)))
+  dees <- list()
+  for(per in 1:n_periods){
+      dtmp <- samplespace[samplespace$t==per,]
+      locs <- cbind(dtmp$x,dtmp$y)
+      for(cov in 1:ncovariates){
+        dtmp[,paste0('X',cov)]=raster::extract(covs[[per]][[cov]],locs) # extract covariate value at sampling locations
+      }
+      dees[[per]] <- dtmp
+  }
+  samplespace <- do.call(rbind,dees)
+
+
   samplespace$P  =  plogis(as.matrix(samplespace[,datanames,with=FALSE]) %*% betas+samplespace$S)
 
 
@@ -218,7 +252,7 @@ mortsim <- function(
     return(list(d=d,
                 r.true.mr=r.true.mr,
                 RMmodel=RMmodel,
-                cov.raster=cov.raster,
+                cov.raster.list=covs,
                 S.raster=r.samplespace,
                 fullsamplespace=samplespace,
                 template=template,
