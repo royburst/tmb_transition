@@ -114,8 +114,8 @@ x   <- do.call('optim',obj)
 Parameters$alpha <- x$par
 
 #bounds
-lower       =    c(rep(-20,dim(X_xp)[2]),rep(-10,2),-0.999)
-upper       =    c(rep(20 ,dim(X_xp)[2]),rep( 10,2), 0.999)
+lower       =    c(rep(-20,dim(X_xp)[2]),rep(-10,3),-0.999)
+upper       =    c(rep(20 ,dim(X_xp)[2]),rep( 10,3), 0.999)
 
 # cancel out rho if needed
 mapout <- list()

@@ -280,3 +280,337 @@ rasterFromXYZT <- function(table,
       res=addLayer(res, rasterFromXYZ(as.matrix(table[t==r,c('x','y',z),with=F])))
   return(res)
 }
+
+#######
+## Take a simobj and return useful data inputs for modelling
+getsimdata <- function(simobj){ # so is a list returned from mortsim
+
+  ## get samples from which to fit
+  dt <- simobj[["d"]]
+
+  ## set some stuff up
+  dt[,id:=1:.N]
+  coords   <- cbind(dt$x,dt$y)
+  nperiod  <- length(unique(dt$period))
+
+  ## MESH For now use same mesh per time point
+  ## TODO CHANGE THIS
+  data.boundary <- cbind(c(0, 0, 1, 1), c(0, 1, 1, 0))
+  mesh_s <- inla.mesh.2d(,
+                         data.boundary,
+                         max.edge=c(0.2,0.2),
+                         cutoff=0.05)
+
+  nodes <- mesh_s$n ## get number of mesh nodes
+  spde <- inla.spde2.matern( mesh_s,alpha=2 ) ## Build SPDE object using INLA (must pass mesh$idx$loc when supplying Boundary)
+  ## ^ this gives us a linear reduction of \Sigma^{-1} as:
+  ## \Sigma^{-1} = \kappa^4 M_0 + 2\kappa^2M_1 + M_2
+  ## M_2 = M_1M_0^{-1}M_1
+  ## Where the Ms are all sparse matrices stored as "dgTMatrix"
+  ## names(spde$param.inla)
+
+  ## setup prediction mesh needed to get fomr mesh to data locations within tmb function
+  ## get surface to project on to
+  data.periods <- dt$period
+
+  ## use inla helper functions to project the spatial effect from mesh points to data points
+  A.proj <- inla.spde.make.A(mesh  = mesh_s,
+                             loc   = coords,
+                             group = data.periods)
+  ##model frame
+  X_xp = as.matrix(cbind(1, dt[,names(simobj$cov.raster.list[[1]]),with=FALSE]))
+
+
+  Data = list(n_i=nrow(dt),                   ## Total number of observations
+              n_x=mesh_s$n,                   ## Number of vertices in SPDE mesh
+              n_t=nperiod,                    ## Number of periods
+              n_p=ncol(X_xp),                 ## Number of columns in covariate matrix X
+  ##            x_s=mesh_s$idx$loc-1,           ## Association of each cluster with a given vertex in SPDE mesh
+              c_i=dt$deaths,                  ## Number of observed deaths in the cluster (N+ in binomial likelihood)
+              Exp_i=dt$exposures,             ## Number of observed exposures in the cluster (N in binomial likelihood)
+              s_i=dt$id-1,                    ## no site specific effect in my model (different sampling locations in time)
+              t_i=dt$period-1,                ## Sample period ( starting at zero )
+              X_xp=X_xp,                      ## Covariate design matrix
+              G0=spde$param.inla$M0,          ## SPDE sparse matrix
+              G1=spde$param.inla$M1,          ## SPDE sparse matrix
+              G2=spde$param.inla$M2,          ## SPDE sparse matrix
+              Aproj = A.proj,                 ## mesh to prediction point projection matrix
+              options = c(1))                 ## option1==1 use priors
+              #spde=(spde$param.inla)[c('M1','M2','M3')])
+
+  ## staring values for parameters
+  Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parameters alphas
+                    log_tau_E=1.0,                                    ## log inverse of tau  (Epsilon)
+                    log_kappa=0.0,	                                  ## Matern Range parameter
+                    rho=0.5,
+                    epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n))     ## GP locations
+
+
+  return( list( dt      = dt,
+                coords  = coords,
+                nperiod = nperiod,
+                mesh_s  = mesh_s,
+                nodes   = nodes,
+                spde    = spde,
+                A.proj  = A.proj,
+                X_xp    = X_xp,
+                fullsamplespace = simobj$fullsamplespace,
+                tmbdata = Data,
+                tmbpars = Parameters ) )
+}
+
+
+
+######
+## Fit and Predict from TMB
+fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
+                            cores = 1, # need to debug parallel
+                            draws = 50,
+                            fixsigma = FALSE, # posdef thing, will change cov
+                            bias.correct= TRUE,
+                            simdata){ # returned from getsimdata
+
+  ### FIT MODEL
+  ## Make object
+  ## Compile
+  message('compiling')
+  templ <- "basic_spde" # _aoz" #spde2
+  TMB::compile(paste0(templ,".cpp"))
+  dyn.load( dynlib(templ) )
+
+  # unload objects from the list to be easier to work with
+  for(n in names(simdata))
+    assign(n,simdata[[n]])
+
+  #openmp(cores) # any nyumber other than 1 does not converge or speed up.
+  # map to kill certain variables
+  lower =  c(rep(-20,dim(X_xp)[2]),rep(-10,2),-0.999)
+  upper =  c(rep( 20,dim(X_xp)[2]),rep( 10,2), 0.999)
+
+  # cancel out rho if needed
+  mapout <- list()
+  if(nperiod == 1){
+    lower  <- lower[-1]
+    upper  <- upper[-1]
+    mapout <- list(rho=factor(NA))
+  }
+  # make object
+  ptm <- proc.time()[3]
+  obj <- MakeADFun(data=tmbdata, parameters=tmbpars, map=mapout, random="epsilon", hessian=TRUE, DLL=templ)
+
+  ## Run optimizer
+  opt0 <- do.call("nlminb",list(start       =    obj$par,
+                                objective   =    obj$fn,
+                                gradient    =    obj$gr,
+                                lower       =    lower,
+                                upper       =    upper,
+                                control     =    list(eval.max=1e4, iter.max=1e4, trace=1, rel.tol=.01,step.max=10)))
+
+  fit_time <- proc.time()[3] - ptm
+
+  # Get standard errors
+  ## Report0 = obj$report()
+  ptm <- proc.time()[3]
+  SD0 = sdreport(obj,getReportCovariance=TRUE,bias.correct=bias.correct)
+  ## fe_var_covar <- SD0$cov.fixed
+  tmb_sdreport_time <- proc.time()[3] - ptm
+
+  ##### Prediction
+  message('making predictions')
+  mu    <- c(SD0$value)
+  sigma <- SD0$cov
+
+  ### simulate draws
+  require(MASS)
+  npar   <- length(mu)
+
+  ## make sigma symmetric
+  require(matrixcalc)
+  i <- 0
+  while(!is.symmetric.matrix(sigma)){
+    sigma <- round(sigma, 10 - i)
+    i <- i + 1
+  }
+  message(sprintf("rounded sigma to %i decimals to make it symmetric", 10 - i - 1))
+
+  ## round more or add to diagonal to make sigma pos-def
+  if(!is.positive.definite(sigma)){
+    if(fixsigma){
+      message('Sigma was not positive definitive, tryna fix it')
+      i <- 0
+      sigma2 <- sigma
+      while(!is.positive.definite(sigma2) & i < 6){
+        sigma2 <- round(sigma2, 10 - i)
+        i <- i + 1
+      }
+      if(is.positive.definite(sigma2)){
+        sigma <- sigma2
+        message(sprintf("rounded sigma to %i decimals to make it pos-def", 10 - i - 1))
+      }else{
+        i <- 0
+        while(!is.positive.definite(sigma)){
+          sigma <- sigma + diag(1, nrow(sigma))
+          i <- i + 1
+        }
+        message(sprintf("added %i to the diagonal to make sigma pos-def", i))
+      }
+    } else {
+      stop('Sigma was not definite positive and you set fixsigma==FALSE. So this is an error.')
+    }
+  } else{
+    message('Sigma was positive definitive hurray')
+  }
+
+  ## now we can take draws
+  message('Predicting Draws')
+  draws  <- t(mvrnorm(n=ndraws,mu=mu,Sigma=sigma))
+  ## ^ look for a quicker way to do this..cholesky
+
+  ## separate out the draws
+  epsilon_draws <- draws[rownames(draws)=='Epsilon_xt',]
+  alpha_draws   <- draws[rownames(draws)=='alpha',]
+
+  ## get surface to project on to
+  pcoords = cbind(x=fullsamplespace$x, y=fullsamplespace$y)
+  groups_periods <- fullsamplespace$t
+
+  ## use inla helper functions to project the spatial effect.
+  A.pred <- inla.spde.make.A(
+    mesh = mesh_s,
+    loc = pcoords,
+    group = groups_periods)
+
+
+  ## values of S at each cell (long by nperiods)
+  cell_s <- as.matrix(A.pred %*% epsilon_draws)
+
+  ## extract cell values  from covariates, deal with timevarying covariates here
+  vals <- list()
+  for(p in 1:nperiod){
+    vals[[p]] <- extract(simobj$cov.raster.list[[p]], pcoords[1:(nrow(simobj$fullsamplespace)/nperiod),])
+    vals[[p]] <- (cbind(int = 1, vals[[p]]))
+    vals[[p]] <- vals[[p]] %*% alpha_draws # same as getting cell_ll for each time period
+  }
+  cell_l <- do.call(rbind,vals)
+
+  ## add together linear and st components
+  pred <- cell_l + cell_s
+
+  totalpredict_time <- proc.time()[3] - ptm
+
+
+  return( pred = pred,
+          fit_time = fit_time,
+          predict_time = predict_time)
+
+}
+
+
+
+
+
+#######################
+### INLA
+## Fit and Predict from TMB
+fit_n_pred_INLA <- function( cores = 1,
+                            draws = 50,
+                            simdata){ # returned from getsimdata
+  # unload objects from the list to be easier to work with
+  for(n in names(simdata))
+    assign(n,simdata[[n]])
+
+
+  A <- inla.spde.make.A(
+    mesh = mesh_s,
+    loc = as.matrix(dt[, c('x', 'y'),with=F]),
+    group = dt$period
+  )
+  space = inla.spde.make.index("space",
+                               n.spde = spde$n.spde,
+                               n.group = nperiod)
+
+  design_matrix <- data.frame(int = 1,dt[,simobj$fe.names,with=F])
+  stack.obs=inla.stack(
+    tag='est',
+    data=list(died=dt$deaths), ## response
+    A=list(A,1), ## proj matrix, not sure what the 1 is for
+    effects=list(
+      space,
+      design_matrix)
+  )
+  formula <-
+  formula(paste0('died ~ -1+int+',
+  (paste(simobj$fe.names,collapse = ' + ')),
+  ' + f(space,
+                     model = spde,
+                     group = space.group,
+                     control.group = list(model = \'ar1\'))'
+  ))
+  ptm <- proc.time()[3]
+  res_fit <- inla(formula,
+                  data = inla.stack.data(stack.obs),
+                  control.predictor = list(A = inla.stack.A(stack.obs),
+                                           link = 1,
+                                           compute = FALSE),
+                  control.fixed = list(expand.factor.strategy = 'inla'),
+                  control.inla = list(int.strategy = 'eb', h = 1e-3, tolerance = 1e-6),
+                  control.compute=list(config = TRUE),
+                  family = 'binomial',
+                  num.threads = 10,
+                  Ntrials = dt$exposures,
+                  verbose = TRUE,
+                  keep = TRUE)
+  inla_fit_time <- proc.time()[3] - ptm
+
+  ptm <- proc.time()[3]
+  draws <- inla.posterior.sample(ndraws, res_fit)
+
+  ## get parameter names
+  par_names <- rownames(draws[[1]]$latent)
+
+  ## index to spatial field and linear coefficient samples
+  s_idx <- grep('^space.*', par_names)
+  l_idx <- match(sprintf('%s.1', res_fit$names.fixed),
+                 par_names)
+
+
+  ## get samples as matrices
+  pred_s <- sapply(draws, function (x) x$latent[s_idx])
+  pred_l <- sapply(draws, function (x) x$latent[l_idx])
+  rownames(pred_l) <- res_fit$names.fixed
+
+  ## replicate coordinates and years
+  sspc=simobj$fullsamplespace
+  coords <- cbind(x=sspc$x,y=sspc$y)
+
+  ## get samples of s for all coo locations
+  s <- A.pred %*% pred_s
+  s <- as.matrix(s)
+
+
+  ## predict out linear effects
+  ## extract cell values  from covariates, deal with timevarying covariates here
+  vals <- list()
+  for(p in 1:nperiod){
+    vals[[p]] <- extract(simobj$cov.raster.list[[p]], pcoords[1:(nrow(simobj$fullsamplespace)/nperiod),])
+    vals[[p]] <- (cbind(int = 1, vals[[p]]))
+    vals[[p]] <- vals[[p]] %*% pred_l # same as getting cell_ll for each time period
+  }
+  l <- do.call(rbind,vals)
+
+
+  #vals=as.matrix(cbind(int=1,sspc[,simobj$fe.name,with=F]))
+  #l <- vals %*% pred_l
+
+  pred_inla <- s+l
+
+  ## make them into time bins
+  len = nrow(pred_inla)/nperiod
+  inla_totalpredict_time <- proc.time()[3] - ptm
+
+
+  return( list( pred         = pred_inla,
+                fit_time     = inla_fit_time,
+                predict_time = inla_totalpredict_time) )
+
+}
