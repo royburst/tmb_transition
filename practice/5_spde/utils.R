@@ -449,7 +449,9 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
         message(sprintf("rounded sigma to %i decimals to make it pos-def", 10 - i - 1))
       }else{
         i <- 0
+        message('adding to diag approach')
         while(!is.positive.definite(sigma)){
+          message(i)
           sigma <- sigma + diag(1, nrow(sigma))
           i <- i + 1
         }
