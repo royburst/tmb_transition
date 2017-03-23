@@ -48,10 +48,11 @@ nperiod  <- length(unique(dt$period))
 
 ## MESH For now use same mesh per time point
 ## TODO CHANGE THIS
-mesh_s <- inla.mesh.2d(
-  loc=coords,
-  max.edge=c(0.2,0.2),
-  cutoff=0.05)
+data.boundary <- cbind(c(0, 0, 1, 1), c(0, 1, 1, 0))
+mesh_s <- inla.mesh.2d(,
+                       data.boundary,
+                       max.edge=c(0.2,0.2),
+                       cutoff=0.05)
 
 nodes <- mesh_s$n ## get number of mesh nodes
 spde <- inla.spde2.matern( mesh_s,alpha=2 ) ## Build SPDE object using INLA (must pass mesh$idx$loc when supplying Boundary)
