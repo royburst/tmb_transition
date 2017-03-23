@@ -29,7 +29,7 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
                   rho        = 0.9             ,  ##  AR1 term
                   l          = 250             ,  ##  Matrix Length
-                  n_clusters = 50           ,  ##  number of clusters sampled ]
+                  n_clusters = 500           ,  ##  number of clusters sampled ]
                   n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
                   mean.exposure.months = 100 ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
@@ -185,6 +185,36 @@ sigma <- SD0$cov
 require(MASS)
 npar   <- length(mu)
 ndraws <- 50
+
+## make sigma symmetric
+require(matrixcalc)
+i <- 0
+while(!is.symmetric.matrix(sigma)){
+  sigma <- round(sigma, 10 - i)
+  i <- i + 1
+}
+message(sprintf("rounded sigma to %i decimals to make it symmetric", 10 - i - 1))
+
+## round more or add to diagonal to make sigma pos-def
+i <- 0
+sigma2 <- sigma
+while(!is.positive.definite(sigma2) & i < 6){
+  sigma2 <- round(sigma2, 10 - i)
+  i <- i + 1
+}
+if(is.positive.definite(sigma2)){
+  sigma <- sigma2
+  message(sprintf("rounded sigma to %i decimals to make it pos-def", 10 - i - 1))
+}else{
+  i <- 0
+  while(!is.positive.definite(sigma)){
+    sigma <- sigma + diag(1, nrow(sigma))
+    i <- i + 1
+  }
+  message(sprintf("added %i to the diagonal to make sigma pos-def", i))
+}
+
+## now we can take draws
 draws  <- t(mvrnorm(n=ndraws,mu=mu,Sigma=sigma))
 ## ^ look for a quicker way to do this..cholesky
 
