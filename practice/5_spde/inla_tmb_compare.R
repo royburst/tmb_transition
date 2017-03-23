@@ -79,14 +79,14 @@ A.proj <- inla.spde.make.A(mesh  = mesh_s,
     ## LATER ON X_xp WILL BE STRAIGHT FROM dt SO THIS STEP WILL BE UNNECESSARY
 
 ## Data to pass to TMB
-X_xp = cbind(1, dt[,names(simobj$cov.raster.list[[1]]),with=FALSE])
+X_xp = as.matrix(cbind(1, dt[,names(simobj$cov.raster.list[[1]]),with=FALSE]))
 
 
 Data = list(n_i=nrow(dt),                   ## Total number of observations
             n_x=mesh_s$n,                   ## Number of vertices in SPDE mesh
             n_t=nperiod,                    ## Number of periods
             n_p=ncol(X_xp),                 ## Number of columns in covariate matrix X
-            x_s=mesh_s$idx$loc-1,           ## Association of each cluster with a given vertex in SPDE mesh
+##            x_s=mesh_s$idx$loc-1,           ## Association of each cluster with a given vertex in SPDE mesh
             c_i=dt$deaths,                  ## Number of observed deaths in the cluster (N+ in binomial likelihood)
             Exp_i=dt$exposures,             ## Number of observed exposures in the cluster (N in binomial likelihood)
             s_i=dt$id-1,                    ## no site specific effect in my model (different sampling locations in time)

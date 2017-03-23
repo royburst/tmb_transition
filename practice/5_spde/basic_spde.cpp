@@ -18,7 +18,7 @@ Type objective_function<Type>::operator() ()
   DATA_INTEGER( n_p ); // number of covariate columns in design matrix X
 
   // Data
-  DATA_IVECTOR( x_s );  // <DEPRECATED> association of each cluster with a given vertex
+  //  DATA_IVECTOR( x_s );  // <DEPRECATED> association of each cluster with a given vertex
   DATA_VECTOR( c_i );   // obs deaths per cluster
   DATA_VECTOR( Exp_i ); // exposure mths per cluster
   DATA_IVECTOR( s_i );  // observation specific id
@@ -112,7 +112,7 @@ Type objective_function<Type>::operator() ()
   for (int i=0; i<n_i; i++){
     // THIS LINE CAUSED THE SCALING BUG:    Epsilon_xt(x_s(s_i(i)),t_i(i)) = epsilon(x_s(s_i(i)),t_i(i))/exp(log_tau_E);
     // mrprob(i) = linear_x(x_s(s_i(i))) + Epsilon_xt(x_s(s_i(i)),t_i(i)); // <DEPRECATED> to accont for datapts not at mesh locs
-    mrprob(i) = linear_x(x_s(i)) + proj_epsilon(i); // linear part plus projected sp-tm gp
+    mrprob(i) = linear_x(i) + proj_epsilon(i); // linear part plus projected sp-tm gp
     if( !isNA(c_i(i)) ){
        PARALLEL_REGION jnll_comp[1] -= dbinom( c_i(i), Exp_i(i), invlogit(mrprob(i)), true );
     // TEST   PARALLEL_REGION jnll_comp[1] -= dpois(  c_i(i), invlogit(mrprob(i)) * Exp_i(i), true);
