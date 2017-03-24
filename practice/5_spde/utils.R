@@ -361,6 +361,7 @@ getsimdata <- function(simobj,               # simobj is a list returned from mo
                 A.proj  = A.proj,
                 X_xp    = X_xp,
                 fullsamplespace = simobj$fullsamplespace,
+                cov.rasters = simobj$cov.raster.list,
                 tmbdata = Data,
                 tmbpars = Parameters ) )
 }
@@ -496,7 +497,7 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
   ## extract cell values  from covariates, deal with timevarying covariates here
   vals <- list()
   for(p in 1:nperiod){
-    vals[[p]] <- extract(simobj$cov.raster.list[[p]], pcoords[1:(nrow(simobj$fullsamplespace)/nperiod),])
+    vals[[p]] <- extract(cov.rasters[[p]], pcoords[1:(nrow(fullsamplespace)/nperiod),])
     vals[[p]] <- (cbind(int = 1, vals[[p]]))
     vals[[p]] <- vals[[p]] %*% alpha_draws # same as getting cell_ll for each time period
   }
@@ -589,8 +590,15 @@ fit_n_pred_INLA <- function( cores = 1,
   rownames(pred_l) <- res_fit$names.fixed
 
   ## replicate coordinates and years
-  sspc=simobj$fullsamplespace
-  coords <- cbind(x=sspc$x,y=sspc$y)
+  pcoords = cbind(x=fullsamplespace$x, y=fullsamplespace$y)
+  groups_periods <- fullsamplespace$t
+
+  ## use inla helper functions to project the spatial effect.
+  A.pred <- inla.spde.make.A(
+    mesh = mesh_s,
+    loc = pcoords,
+    group = groups_periods)
+
 
   ## get samples of s for all coo locations
   s <- A.pred %*% pred_s
@@ -601,7 +609,7 @@ fit_n_pred_INLA <- function( cores = 1,
   ## extract cell values  from covariates, deal with timevarying covariates here
   vals <- list()
   for(p in 1:nperiod){
-    vals[[p]] <- extract(simobj$cov.raster.list[[p]], pcoords[1:(nrow(simobj$fullsamplespace)/nperiod),])
+    vals[[p]] <- extract(cov.rasters[[p]], coords[1:(nrow(fullsamplespace)/nperiod),])
     vals[[p]] <- (cbind(int = 1, vals[[p]]))
     vals[[p]] <- vals[[p]] %*% pred_l # same as getting cell_ll for each time period
   }
