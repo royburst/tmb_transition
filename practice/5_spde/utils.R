@@ -442,7 +442,7 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
   ## round more or add to diagonal to make sigma pos-def
   if(!is.positive.definite(sigma)){
     if(fixsigma){
-      message('Sigma was not positive definitive, tryna fix it')
+      message('Sigma was not positive definite, tryna fix it')
       i <- 0
       sigma2 <- sigma
       while(!is.positive.definite(sigma2) & i < 6){
@@ -467,7 +467,7 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
       stop('Sigma was not definite positive and you set fixsigma==FALSE. So this is an error.')
     }
   } else{
-    message('Sigma was positive definitive hurray')
+    message('Sigma was positive definite hurray')
   }
 
   ## now we can take draws
