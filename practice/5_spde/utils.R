@@ -508,9 +508,9 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
   totalpredict_time <- proc.time()[3] - ptm
 
 
-  return( pred = pred,
+  return( list(pred = pred,
           fit_time = fit_time,
-          predict_time = predict_time)
+          predict_time = predict_time))
 
 }
 
