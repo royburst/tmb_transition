@@ -572,7 +572,7 @@ fit_n_pred_INLA <- function( cores = 1,
   inla_fit_time <- proc.time()[3] - ptm
 
   ptm <- proc.time()[3]
-  draws <- inla.posterior.sample(ndraws, res_fit)
+  draws <- inla.posterior.sample(draws, res_fit)
 
   ## get parameter names
   par_names <- rownames(draws[[1]]$latent)
@@ -625,4 +625,23 @@ fit_n_pred_INLA <- function( cores = 1,
 }
 
 
-# compare outputs
+########################################
+# compare outputs.
+# get mse, absE, relE, morans I (error), coverage, 2 types of correlation, coverage
+validate <- function(tmb,
+                     inla,
+                     simobj){
+
+## summarize predictions and truth and errors
+summ_inla <- cbind(median=(apply(inla$pred,1,median)),sd=(apply(inla$pred,1,sd)))
+summ_tmb  <- cbind(median=(apply(tmb$pred,1,median)),sd=(apply(tmb$pred,1,sd)))
+truth     <- qlogis(as.vector(simobj$r.true.mr))
+err_tmb   <- summ_tmb[,1]-truth
+err_inla  <- summ_inla[,1]-truth
+
+
+# timing info
+# numbers of inputs (clusters, time bins, covariates, etc)
+
+
+}
