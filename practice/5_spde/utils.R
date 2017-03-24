@@ -283,7 +283,9 @@ rasterFromXYZT <- function(table,
 
 #######
 ## Take a simobj and return useful data inputs for modelling
-getsimdata <- function(simobj,options=1){ # so is a list returned from mortsim
+getsimdata <- function(simobj,               # simobj is a list returned from mortsim
+                       meshatdatalocs=FALSE, # make the mesh at data locations?
+                       options=1){
 
   ## get samples from which to fit
   dt <- simobj[["d"]]
@@ -293,14 +295,18 @@ getsimdata <- function(simobj,options=1){ # so is a list returned from mortsim
   coords   <- cbind(dt$x,dt$y)
   nperiod  <- length(unique(dt$period))
 
-  ## MESH For now use same mesh per time point
-  ## TODO CHANGE THIS
+  ## MESH
   data.boundary <- cbind(c(0, 0, 1, 1), c(0, 1, 1, 0))
-  mesh_s <- inla.mesh.2d(,
-                         data.boundary,
-                         max.edge=c(0.2,0.2),
-                         cutoff=0.05)
-
+  if(meshatdatalocs){
+       mesh_s <- inla.mesh.2d(loc=coords,
+                          max.edge=c(0.2,0.2),
+                          cutoff=0.05)
+  } else {
+       mesh_s <- inla.mesh.2d(,
+                             data.boundary,
+                             max.edge=c(0.2,0.2),
+                             cutoff=0.05)
+   }
   nodes <- mesh_s$n ## get number of mesh nodes
   spde <- inla.spde2.matern( mesh_s,alpha=2 ) ## Build SPDE object using INLA (must pass mesh$idx$loc when supplying Boundary)
   ## ^ this gives us a linear reduction of \Sigma^{-1} as:
