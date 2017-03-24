@@ -283,7 +283,7 @@ rasterFromXYZT <- function(table,
 
 #######
 ## Take a simobj and return useful data inputs for modelling
-getsimdata <- function(simobj){ # so is a list returned from mortsim
+getsimdata <- function(simobj,options=1){ # so is a list returned from mortsim
 
   ## get samples from which to fit
   dt <- simobj[["d"]]
@@ -335,7 +335,7 @@ getsimdata <- function(simobj){ # so is a list returned from mortsim
               G1=spde$param.inla$M1,          ## SPDE sparse matrix
               G2=spde$param.inla$M2,          ## SPDE sparse matrix
               Aproj = A.proj,                 ## mesh to prediction point projection matrix
-              options = c(1))                 ## option1==1 use priors
+              options = options)                 ## option1==1 use priors
               #spde=(spde$param.inla)[c('M1','M2','M3')])
 
   ## staring values for parameters
