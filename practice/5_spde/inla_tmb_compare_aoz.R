@@ -22,9 +22,9 @@ source('utils.R')
 ###############################################################
 ## SIMULATE AND SET UP THE DATA
 ## Simulate a surface, this returns a list of useful objects like samples and truth
-n.clust   <- 250
-n.expMths <- 1000
-n.periods <- 1
+n.clust   <- 25
+n.expMths <- 50
+n.periods <- 4
 simobj <- mortsim(nu         = 2            ,  ##  Matern smoothness parameter (alpha in INLA speak)
                   betas      = c(-3,-1,1.5,1) ,  ##  Intercept coef and covariate coef For Linear predictors
                   scale      = .25            ,  ##  Matern scale eparameter
@@ -54,8 +54,7 @@ nperiod  <- length(unique(dt$period))
 ## TODO CHANGE THIS
 mesh_s <- inla.mesh.2d(
   loc=coords,
-  max.edge=c(0.2,0.2),
-  cutoff=0.05)
+  max.edge=c(0.2,0.2))
 
 nodes <- mesh_s$n ## get number of mesh nodes
 spde <- inla.spde2.matern( mesh_s,alpha=2 ) ## Build SPDE object using INLA (must pass mesh$idx$loc when supplying Boundary)
@@ -67,7 +66,7 @@ names(spde$param.inla)
 
 
 ## pull covariate(s) at mesh knots
-covs <- raster::extract(simobj$cov.raster,cbind(mesh_s$loc[,1],mesh_s$loc[,2]))
+covs <- raster::extract(simobj$cov.raster.list[[1]],cbind(mesh_s$loc[,1],mesh_s$loc[,2]))
 names(spde$param.inla)
 
 ## Data to pass to TMB
@@ -93,12 +92,12 @@ Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parame
                   ##                  log_tau_O=1.0,                ## log inverse of tau (SP)
                   log_kappa=0.0,	                            ## Matern Range parameter
                   rho=0.5,                                          ## Autocorrelation term
-                  epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n),     ## GP
-                  sp=matrix(rnorm(mesh_s$n)))                       ## RE for mesh points
+                  epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n))#,     ## GP
+                  #sp=matrix(rnorm(mesh_s$n)))                       ## RE for mesh points
 
 
 ## which parameters are random
-Random = c("epsilon",'sp') ## ,'log_tau_E','log_kappa','rho')
+Random = c("epsilon") ## ,'log_tau_E','log_kappa','rho')
 
 ##########################################################
 ### FIT MODEL
@@ -107,7 +106,7 @@ Random = c("epsilon",'sp') ## ,'log_tau_E','log_kappa','rho')
 TMB::compile("basic_spde_aoz.cpp")
 dyn.load( dynlib('basic_spde_aoz') )
 
-obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, DLL='basic_spde')
+obj <- MakeADFun(data=Data, parameters=Parameters, random=Random, hessian=TRUE, DLL='basic_spde_aoz')
                                         #obj$env$beSilent()
 
 ## Run optimizer
@@ -125,9 +124,19 @@ print(sprintf("TMB took %s %s to run", model.runtime, attributes(model.runtime)$
 ## head(summary(SD0))
 
 ## Get standard errors
-print('getting standard errors')
+print('getting standard errors TESTING')
 ## Report0 = obj$report()
 SD0 = sdreport(obj,getReportCovariance=TRUE)
+SD1 = sdreport(obj,getJointPrecision=TRUE)
+sigma0=SD0$cov
+sigma1=solve(SD1$jointPrecision)
+sigma1=sigma1[c(-5,-6,-7),c(-5,-6,-7)] # remove tau k rho
+sigma1=as.matrix(sigma1)
+sigma1=round(sigma1,3)
+sigma0=round(sigma0,3)
+mean(sigma1==sigma0)
+sigma0[10:20,10:20]
+sigma1[10:20,10:20]
 ## fe_var_covar <- SD0$cov.fixed
 
 ##### Prediction
