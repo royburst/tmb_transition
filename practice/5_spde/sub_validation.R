@@ -9,10 +9,7 @@ setwd(paste0(dir,"/practice/5_spde"))
 
 
 
-  for(i in 1:10){
-
-    qsub <- sprintf("qsub -e /share/temp/sgeoutput/royburst/errors -o /share/temp/sgeoutput/royburst/output -cwd -P proj_geospatial -N job_%i r_shell.sh validation.R %i",i,i)
-
-    system(qsub)
-
-  }
+for(i in 1:10){
+  qsub <- sprintf("qsub -e /share/temp/sgeoutput/royburst/errors -o /share/temp/sgeoutput/royburst/output -cwd -P proj_geospatial -N job_%i r_shell.sh validation.R %i",i,i)
+  system(qsub)
+}
