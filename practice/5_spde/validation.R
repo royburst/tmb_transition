@@ -19,7 +19,9 @@ setwd(paste0(dir,"/practice/5_spde"))
 ## source some functions made for this bit
 source('utils.R')
 iii  <- as.numeric(commandArgs()[3])
-
+n_clusters  <- as.numeric(commandArgs()[4])
+mean.exposure.months  <- as.numeric(commandArgs()[5])
+n_periods  <- as.numeric(commandArgs()[6])
 
 ###############################################################
 ## SIMULATE AND SET UP THE DATA
@@ -30,9 +32,9 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
                   rho        = 0.9             ,  ##  AR1 term
                   l          = 50             ,  ##  Matrix Length
-                  n_clusters = 5000           ,  ##  number of clusters sampled ]
-                  n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
-                  mean.exposure.months = 1000 ,  ##  mean exposure months per cluster
+                  n_clusters = n_clusters           ,  ##  number of clusters sampled ]
+                  n_periods  = n_periods               ,  ##  number of periods (1 = no spacetime)
+                  mean.exposure.months = mean.exposure.months ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 3              ,  ##  how many covariates to include?
                   seed   = NULL                ,
