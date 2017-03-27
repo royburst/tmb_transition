@@ -381,7 +381,7 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
   ## Make object
   ## Compile
   message('compiling')
-  templ <- "basic_spde" # _aoz" #spde2
+#  templ <- "basic_spde" # _aoz" #spde2
   TMB::compile(paste0(templ,".cpp"))
   dyn.load( dynlib(templ) )
 
@@ -419,6 +419,15 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
   ## Report0 = obj$report()
   ptm <- proc.time()[3]
   SD0 = sdreport(obj,getReportCovariance=TRUE,bias.correct=bias.correct)
+#
+#  #### TEST PRECIS MATRIX#
+#  SD1 = sdreport(obj,getJointPrecision=TRUE,bias.correct=FALSE)
+#  sigma<-solve(SD1$jointPrecision)
+#  idx <- which(!rownames(sigma)%in%c("log_tau_E", "log_kappa", "rho"))
+#  sigma<-sigma[idx,idx]
+#  sigma<-as.matrix(sigma)
+#  ####################
+#
   ## fe_var_covar <- SD0$cov.fixed
   tmb_sdreport_time <- proc.time()[3] - ptm
 
@@ -438,6 +447,8 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
     sigma <- round(sigma, 10 - i)
     i <- i + 1
   }
+  if(i>9) stop('Too much rounding of sigma to make it symmetric, something is wrong.')
+
   message(sprintf("rounded sigma to %i decimals to make it symmetric", 10 - i - 1))
 
   ## round more or add to diagonal to make sigma pos-def
