@@ -610,7 +610,7 @@ fit_n_pred_INLA <- function( cores = 1,
   ## extract cell values  from covariates, deal with timevarying covariates here
   vals <- list()
   for(p in 1:nperiod){
-    vals[[p]] <- extract(cov.rasters[[p]], coords[1:(nrow(fullsamplespace)/nperiod),])
+    vals[[p]] <- extract(cov.rasters[[p]], pcoords[1:(nrow(fullsamplespace)/nperiod),])
     vals[[p]] <- (cbind(int = 1, vals[[p]]))
     vals[[p]] <- vals[[p]] %*% pred_l # same as getting cell_ll for each time period
   }
