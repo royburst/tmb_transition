@@ -28,10 +28,10 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   scale      = .1              ,  ##  Matern scale eparameter
                   Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
                   rho        = 0.9             ,  ##  AR1 term
-                  l          = 250             ,  ##  Matrix Length
-                  n_clusters = 500           ,  ##  number of clusters sampled ]
+                  l          = 50             ,  ##  Matrix Length
+                  n_clusters = 5000           ,  ##  number of clusters sampled ]
                   n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
-                  mean.exposure.months = 100 ,  ##  mean exposure months per cluster
+                  mean.exposure.months = 1000 ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 3              ,  ##  how many covariates to include?
                   seed   = NULL                ,
@@ -40,12 +40,16 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
 
 ######
 ## pull out some useful data
-simdat <- getsimdata(simobj)
+simdat <- getsimdata(simobj,meshatdatalocs=FALSE,options=1)
 
 #####
 ## TMB
-tmb <- fit_n_pred_TMB(simdata = simdat, fixsigma = TRUE)
+tmb <- fit_n_pred_TMB(simdata = simdat, fixsigma = FALSE)
 
 #####
 ## INLA
 inla <- fit_n_pred_INLA(simdata = simdat)
+
+######
+## validate
+v <- rbind(validate(tmb),validate(inla))

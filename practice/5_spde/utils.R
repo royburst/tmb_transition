@@ -511,7 +511,8 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
 
   return( list(pred = pred,
                 fit_time = fit_time,
-                predict_time = totalpredict_time))
+                predict_time = totalpredict_time,
+                model = 'tmb'))
 
 }
 
@@ -628,7 +629,8 @@ fit_n_pred_INLA <- function( cores = 1,
 
   return( list( pred         = pred_inla,
                 fit_time     = inla_fit_time,
-                predict_time = inla_totalpredict_time) )
+                predict_time = inla_totalpredict_time,
+                model        = 'inla') )
 
 }
 
@@ -636,20 +638,44 @@ fit_n_pred_INLA <- function( cores = 1,
 ########################################
 # compare outputs.
 # get mse, absE, relE, morans I (error), coverage, 2 types of correlation, coverage
-validate <- function(tmb,
-                     inla,
-                     simobj){
+validate <- function(fit,       # fit object from tmb or inla
+                     so=simobj    # the sim object
+                     ){
 
 ## summarize predictions and truth and errors
-summ_inla <- cbind(median=(apply(inla$pred,1,median)),sd=(apply(inla$pred,1,sd)))
-summ_tmb  <- cbind(median=(apply(tmb$pred,1,median)),sd=(apply(tmb$pred,1,sd)))
-truth     <- qlogis(as.vector(simobj$r.true.mr))
-err_tmb   <- summ_tmb[,1]-truth
-err_inla  <- summ_inla[,1]-truth
+summ  <- cbind(median=(apply(fit$pred,1,median)),sd=(apply(fit$pred,1,sd)))
+truth <- qlogis(as.vector(so$r.true.mr))
+err   <- summ[,1]-truth
 
+# calculate some things of interest
+vv_root_mean_squared_error <- mean(err^2)^(1/2)
+vv_mean_absolute_error     <- mean(abs(err))
+vv_mean_error              <- mean(err)
+vv_relative_mean_error     <- mean(err)/mean(truth)
+vv_corr_pearson            <- cor(cbind(summ[,1],truth),method='pearson')[1,2]
+vv_corr_spearman           <- cor(cbind(summ[,1],truth),method='spearman')[1,2]
+
+# coverage
+# a pixel is considered covered if the truth lies with alpha percentage
+vv_coverage_95 <- mean(truth > apply(fit$pred,1,quantile,0.025) & truth < apply(fit$pred,1,quantile,0.975))
+vv_coverage_80 <- mean(truth > apply(fit$pred,1,quantile,0.100) & truth < apply(fit$pred,1,quantile,0.900))
+vv_coverage_50 <- mean(truth > apply(fit$pred,1,quantile,0.250) & truth < apply(fit$pred,1,quantile,0.750))
 
 # timing info
+vv_seconds_to_fit     <- fit$fit_time
+vv_seconds_to_predict <- fit$predict_time
+
 # numbers of inputs (clusters, time bins, covariates, etc)
+vv_time_periods       <- length(unique(so$d$period))
+vv_num_data_points    <- nrow(so$d)
+vv_mean_ss            <- round(mean(so$d$exposures),0)
+vv_num_covariates     <- length(grep('X',names(so$d)))
+vv_average_true_p     <- mean(truth)
 
+# return a one row datatable with sensible column names
+res <- data.table(software=fit$model)
+for(var in ls()[grep('vv_',ls())])
+  res[[gsub('vv_','',var)]]=get(var)
 
+return(res)
 }
