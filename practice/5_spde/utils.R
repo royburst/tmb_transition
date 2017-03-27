@@ -512,6 +512,7 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
   return( list(pred = pred,
                 fit_time = fit_time,
                 predict_time = totalpredict_time,
+                 = ,
                 model = 'tmb'))
 
 }
@@ -524,8 +525,9 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
 ### INLA
 ## Fit and Predict from TMB
 fit_n_pred_INLA <- function( cores = 1,
-                            draws = 50,
-                            simdata){ # returned from getsimdata
+                            ndraws = 50,
+                            simdata,
+                            so=simobj){ # returned from getsimdata
   # unload objects from the list to be easier to work with
   for(n in names(simdata))
     assign(n,simdata[[n]])
@@ -540,7 +542,7 @@ fit_n_pred_INLA <- function( cores = 1,
                                n.spde = spde$n.spde,
                                n.group = nperiod)
 
-  design_matrix <- data.frame(int = 1,dt[,simobj$fe.names,with=F])
+  design_matrix <- data.frame(int = 1,dt[,so$fe.names,with=F])
   stack.obs=inla.stack(
     tag='est',
     data=list(died=dt$deaths), ## response
@@ -551,7 +553,7 @@ fit_n_pred_INLA <- function( cores = 1,
   )
   formula <-
   formula(paste0('died ~ -1+int+',
-  (paste(simobj$fe.names,collapse = ' + ')),
+  (paste(so$fe.names,collapse = ' + ')),
   ' + f(space,
                      model = spde,
                      group = space.group,
@@ -574,7 +576,7 @@ fit_n_pred_INLA <- function( cores = 1,
   inla_fit_time <- proc.time()[3] - ptm
 
   ptm <- proc.time()[3]
-  draws <- inla.posterior.sample(draws, res_fit)
+  draws <- inla.posterior.sample(ndraws, res_fit)
 
   ## get parameter names
   par_names <- rownames(draws[[1]]$latent)
@@ -623,7 +625,6 @@ fit_n_pred_INLA <- function( cores = 1,
   pred_inla <- s+l
 
   ## make them into time bins
-  len = nrow(pred_inla)/nperiod
   inla_totalpredict_time <- proc.time()[3] - ptm
 
 
@@ -678,4 +679,109 @@ for(var in ls()[grep('vv_',ls())])
   res[[gsub('vv_','',var)]]=get(var)
 
 return(res)
+}
+
+
+########################################
+# comparison plots
+comparison_plots <- function(filename='plot.pdf',
+                             so=simobj,
+                             tmb_obj=tmb,
+                             inla_obj=inla){
+
+
+
+  summ_inla <- cbind(median=(apply(inla_obj$pred,1,median)),sd=(apply(inla_obj$pred,1,sd)))
+  ## make summary plots - median, 2.5% and 97.5%
+  summ_tmb <- cbind(median=(apply(tmb_obj$pred,1,median)),sd=(apply(tmb_obj$pred,1,sd)))
+
+  nperiod = length(unique(so$d$period))
+  len = nrow(tmb_obj$pred)/nperiod
+
+  ## get error and SD
+  truth <- qlogis(as.vector(so$r.true.mr))
+
+
+  e_tmb  <- summ_tmb[,1]-truth
+  e_inla <- summ_inla[,1]-truth
+
+  m_diff  <- summ_tmb[,1] - summ_inla[,1]
+  sd_diff <- summ_tmb[,2] - summ_inla[,2]
+
+  pcoords = cbind(x=so$fullsamplespace$x, y=so$fullsamplespace$y)
+
+  m_tmb_r   <- rasterFromXYZT(data.table(pcoords,p=summ_tmb[,1], t=rep(1:nperiod,each=len)),"p","t")
+  m_inla_r  <- rasterFromXYZT(data.table(pcoords,p=summ_inla[,1],t=rep(1:nperiod,each=len)),"p","t")
+  e_tmb_r   <- rasterFromXYZT(data.table(pcoords,p=e_tmb, t=rep(1:nperiod,each=len)),"p","t")
+  e_inla_r  <- rasterFromXYZT(data.table(pcoords,p=e_inla,t=rep(1:nperiod,each=len)),"p","t")
+  sd_tmb_r  <- rasterFromXYZT(data.table(pcoords,p=summ_tmb[,2], t=rep(1:nperiod,each=len)),"p","t")
+  sd_inla_r <- rasterFromXYZT(data.table(pcoords,p=summ_inla[,2],t=rep(1:nperiod,each=len)),"p","t")
+  m_diff_r  <- rasterFromXYZT(data.table(pcoords,p=m_diff,t=rep(1:nperiod,each=len)),"p","t")
+  sd_diff_r <- rasterFromXYZT(data.table(pcoords,p=sd_diff,t=rep(1:nperiod,each=len)),"p","t")
+
+  emn <- min(c(e_inla,e_tmb))
+  emx <- max(c(e_inla,e_tmb))
+  smn <- min(c(summ_inla[,2],summ_tmb[,2]))
+  smx <- max(c(summ_inla[,2],summ_tmb[,2]))
+  mmn <- min(c(summ_inla[,1],summ_tmb[,1],truth))
+  mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
+
+
+  ## plot
+  print('making plots')
+  require(grDevices)
+  ##pdf(sprintf('mean_error_tmb_inla_%i_clusts_%iexpMths_wo_priors.pdf', n.clust, n.expMths), height=20,width=16)
+  pdf(filename, height=20,width=16)
+
+  par(mfrow=c(4,3),
+      mar = c(3, 3, 3, 9))
+
+  truthr<- so$r.true.mr
+  values(truthr) <- truth
+
+  ## 1
+  plot(truthr[[1]],main='TRUTH',zlim=c(mmn,mmx))
+  points(so$d$x[so$d$period==1],so$d$y[so$d$period==1])
+
+  ## 2
+  plot(as.vector(sd_tmb_r[[1]]),as.vector(sd_inla_r[[1]]), col = rainbow(11)[cut(pcoords[, 1], breaks = 10)], main = "Color by X")
+  legend("bottomright", legend = unique(cut(pcoords[, 1], breaks = 10)), col = rainbow(11), pch = 16)
+  abline(a = 0, b = 1)
+  ## 3
+  plot(as.vector(sd_tmb_r[[1]]),as.vector(sd_inla_r[[1]]), col = rainbow(11)[cut(pcoords[, 2], breaks = 10)], main = "Color by Y")
+  legend("bottomright", legend = unique(cut(pcoords[, 2], breaks = 10)), col = rainbow(11), pch = 16)
+  abline(a = 0, b = 1)
+  ## 4
+  plot(m_tmb_r[[1]],main='MEDIAN TMB',zlim=c(mmn,mmx))
+  ## 5
+  plot(m_inla_r[[1]],main='MEDIAN INLA',zlim=c(mmn,mmx))
+  ## 6
+  cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+  brks <- c(seq(min(values(m_diff_r)), 0, length = 15), 0, seq(0, max(values(m_diff_r)),length = 15))[-c(15, 16)]
+  plot(m_diff_r[[1]],main='MEDIAN DIFFERENCE', col = cls, breaks = brks)
+  ## 7
+  error.values <- range(c(values(e_tmb_r), values(e_inla_r)))
+  cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+  brks <- c(seq(min(error.values), 0, length = 15), 0, seq(0, max(error.values),length = 15))[-c(15, 16)]
+  plot(e_tmb_r[[1]],main='TMB ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
+  ## 8
+  cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+  brks <- c(seq(min(error.values), 0, length = 15), 0, seq(0, max(error.values),length = 15))[-c(15, 16)]
+  plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
+  ## 9
+  plot(x = e_inla_r[[1]], y = e_tmb_r[[1]], xlab = "inla error", ylab="tmb error");abline(a = 0, b= 1)
+  ## 10
+  plot(sd_tmb_r[[1]],main='TMB SD',zlim=c(smn,smx))
+  points(so$d$x[so$d$period==1],so$d$y[so$d$period==1])
+  ## 11
+  plot(sd_inla_r[[1]],main='INLA SD',zlim=c(smn,smx))
+  points(so$d$x[so$d$period==1],so$d$y[so$d$period==1])
+  ## 12
+  cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+  brks <- c(seq(min(values(sd_diff_r)), 0, length = 15), 0, seq(0, max(values(sd_diff_r)),length = 15))[-c(15, 16)]
+  plot(sd_diff_r[[1]], main='SD DIFFERENCE', col = cls, breaks = brks)
+  points(so$d$x[so$d$period==1],so$d$y[so$d$period==1])
+
+  dev.off()
+
 }
