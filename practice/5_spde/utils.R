@@ -512,7 +512,7 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
   return( list(pred = pred,
                 fit_time = fit_time,
                 predict_time = totalpredict_time,
-                 = ,
+                modelobj = opt0
                 model = 'tmb'))
 
 }
@@ -631,6 +631,7 @@ fit_n_pred_INLA <- function( cores = 1,
   return( list( pred         = pred_inla,
                 fit_time     = inla_fit_time,
                 predict_time = inla_totalpredict_time,
+                modelobj=res_fit,
                 model        = 'inla') )
 
 }
