@@ -57,4 +57,4 @@ v <- rbind(validate(tmb),validate(inla))
 
 ######
 ## write output
-fwrite(v,sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%i.csv',i))
+fwrite(v,sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%i.csv',iii))
