@@ -12,12 +12,13 @@ library(raster)
 ## need to set to same directory as the template file, also pull from git
 ## Clone the git directory to your H drive and this should work for anyone
 dir <- paste0("/homes/",Sys.info()['user'],"/tmb_transition")
-system(paste0('cd ',dir,'\ngit pull origin develop'))
+#system(paste0('cd ',dir,'\ngit pull origin develop'))
 setwd(paste0(dir,"/practice/5_spde"))
 ## source("./inla_tmb_compare.R")
 
 ## source some functions made for this bit
 source('utils.R')
+iii  <- as.numeric(commandArgs()[3])
 
 
 ###############################################################
@@ -53,3 +54,7 @@ inla <- fit_n_pred_INLA(simdata = simdat)
 ######
 ## validate
 v <- rbind(validate(tmb),validate(inla))
+
+######
+## write output
+fwrite(v,sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%i.csv',i))
