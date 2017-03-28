@@ -819,3 +819,37 @@ comparison_plots <- function(filename='plot.pdf',
   dev.off()
 
 }
+
+
+###########
+# plotting funct
+plotbenchmarks <- function( x, #x and y are the variables for axes
+                            y,
+                            rd=run_date,
+                            returncompileddata=FALSE) {
+  require(ggplot2)
+
+  message(sprintf('compiling validation runs from  /home/j/temp/geospatial/tmb_testing/cluster_out/%s/',rd))
+  d<-data.table()
+  for(f in list.files(path = sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/',rd)))
+    if(length(grep('.csv',f))>0)
+      d <- rbind(d,fread(sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s',rd,f)))
+  dd<-copy(d)
+
+  #summarize
+  d[,mean_ss:=round(mean_ss,-2)]
+  d<-d[,.(yp=mean(get(y)),number_of_simulations=sum(.N)),by=.(software,get(x))]
+
+  filepath=sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s__%s_plot.pdf',rd,x,y)
+
+  message(sprintf('SAVING PLOT AT /home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s$s_plot.pdf',rd,x,y))
+  pdf(filepath,height=8,width=8)
+  g<-ggplot(d,aes(x=get,y=yp,col=software))+
+    geom_line(size=1)+geom_point(aes(size=number_of_simulations))+
+    ylab(y)+xlab(x)+
+    theme_bw()
+  print(g)
+  dev.off()
+
+  if(returncompileddata) return(dd)
+}
