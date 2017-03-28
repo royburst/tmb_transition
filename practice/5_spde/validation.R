@@ -12,16 +12,23 @@ library(raster)
 ## need to set to same directory as the template file, also pull from git
 ## Clone the git directory to your H drive and this should work for anyone
 dir <- paste0("/homes/",Sys.info()['user'],"/tmb_transition")
-#system(paste0('cd ',dir,'\ngit pull origin develop'))
 setwd(paste0(dir,"/practice/5_spde"))
-## source("./inla_tmb_compare.R")
+
+if( exists (commandArgs()[3]) ) { # if qsubbed
+  iii                   <- as.numeric(commandArgs()[3])
+  n_clusters            <- as.numeric(commandArgs()[4])
+  mean.exposure.months  <- as.numeric(commandArgs()[5])
+  n_periods             <- as.numeric(commandArgs()[6])
+} else { # if testing interactively
+  iii                   <- 1
+  n_clusters            <- 50
+  mean.exposure.months  <- 100
+  n_periods             <- 4
+  system(paste0('cd ',dir,'\ngit pull origin develop'))
+}
 
 ## source some functions made for this bit
 source('utils.R')
-iii  <- as.numeric(commandArgs()[3])
-n_clusters  <- as.numeric(commandArgs()[4])
-mean.exposure.months  <- as.numeric(commandArgs()[5])
-n_periods  <- as.numeric(commandArgs()[6])
 
 ###############################################################
 ## SIMULATE AND SET UP THE DATA
@@ -47,11 +54,11 @@ simdat <- getsimdata(simobj,meshatdatalocs=FALSE,options=1)
 
 #####
 ## TMB
-tmb <- fit_n_pred_TMB(simdata = simdat, fixsigma = FALSE)
+tmb <- fit_n_pred_TMB(simdata = simdat, templ = 'basic_spde', fixsigma = FALSE, ndraws = 1000)
 
 #####
 ## INLA
-inla <- fit_n_pred_INLA(simdata = simdat)
+inla <- fit_n_pred_INLA(simdata = simdat, ndraws = 1000)
 
 ######
 ## validate
