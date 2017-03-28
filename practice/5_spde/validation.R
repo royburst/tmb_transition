@@ -38,7 +38,7 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   system(paste0('cd ',dir,'\ngit pull origin develop'))
 }
 for(l in ls())
-  message(sprintf('%s::: %s',l,get(l)))
+  message(sprintf('%s::: %s\n',l,get(l)))
 
 ## source some functions made for this bit
 source('utils.R')
