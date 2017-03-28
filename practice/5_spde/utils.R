@@ -411,7 +411,7 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
                                 gradient    =    obj$gr,
                                 lower       =    lower,
                                 upper       =    upper,
-                                control     =    list(eval.max=1e4, iter.max=1e4, trace=1, rel.tol=.01,step.max=10)))
+                                control     =    list(eval.max=1e4, iter.max=1e4, trace=1))) # rel.tol=.01,step.max=10)))
 
   fit_time <- proc.time()[3] - ptm
 
