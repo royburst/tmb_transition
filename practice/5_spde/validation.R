@@ -37,6 +37,8 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   num_covariates        <- 3
   system(paste0('cd ',dir,'\ngit pull origin develop'))
 }
+for(l in ls())
+  message(sprintf('%s::: %s',l,get(l)))
 
 ## source some functions made for this bit
 source('utils.R')
