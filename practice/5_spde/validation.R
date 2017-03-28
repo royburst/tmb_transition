@@ -20,12 +20,14 @@ if( exists (commandArgs()[3]) ) { # if qsubbed
   mean.exposure.months  <- as.numeric(commandArgs()[5])
   n_periods             <- as.numeric(commandArgs()[6])
   run_date              <- as.character(commandArgs()[7])
+  matrix_length         <- as.numeric(commandArgs()[8])
 } else { # if testing interactively
   iii                   <- 1
   n_clusters            <- 50
   mean.exposure.months  <- 100
   n_periods             <- 4
   run_date              <- 'test'
+  matrix_length         <- 1000
   system(paste0('cd ',dir,'\ngit pull origin develop'))
 }
 
@@ -40,7 +42,7 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   scale      = .1              ,  ##  Matern scale eparameter
                   Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
                   rho        = 0.9             ,  ##  AR1 term
-                  l          = 50             ,  ##  Matrix Length
+                  l          = matrix_length             ,  ##  Matrix Length
                   n_clusters = n_clusters           ,  ##  number of clusters sampled ]
                   n_periods  = n_periods               ,  ##  number of periods (1 = no spacetime)
                   mean.exposure.months = mean.exposure.months ,  ##  mean exposure months per cluster
