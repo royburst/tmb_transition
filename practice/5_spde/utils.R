@@ -698,7 +698,7 @@ if(fit$model=='tmb'){
                            vv_intercept_coef < (fit$modelobj$par.fixed[[1]] + 1.96*sqrt(fit$modelobj$cov.fixed[[1,1]]))
 }
 if(fit$model=='inla'){
-  vv_rho_diff           <- summary(fit$modelobj)$hyperpar[3,1] - vv.rho
+  vv_rho_diff           <- summary(fit$modelobj)$hyperpar[3,1] - vv_rho
   vv_rho_covered        <- vv_rho >  summary(fit$modelobj)$hyperpar[3,3] &
                            vv_rho <  summary(fit$modelobj)$hyperpar[3,5]
   vv_intercept_diff     <- summary(fit$modelobj)$fixed['int','mean'] - vv_intercept_coef
