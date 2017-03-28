@@ -22,13 +22,19 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   n_periods             <- as.numeric(commandArgs()[6])
   run_date              <- as.character(commandArgs()[7])
   matrix_length         <- as.numeric(commandArgs()[8])
+  intercept_coef        <- as.numeric(commandArgs()[9])
+  rho                   <- as.numeric(commandArgs()[10])
+  num_covariates        <- as.numeric(commandArgs()[11])
 } else { # if testing interactively
   iii                   <- 1
   n_clusters            <- 50
   mean.exposure.months  <- 100
   n_periods             <- 4
   run_date              <- 'test'
-  matrix_length         <- 1000
+  matrix_length         <- 100
+  intercept_coef        <- -3
+  rho                   <- .9
+  num_covariates        <- 3
   system(paste0('cd ',dir,'\ngit pull origin develop'))
 }
 
@@ -39,16 +45,16 @@ source('utils.R')
 ## SIMULATE AND SET UP THE DATA
 ## Simulate a surface, this returns a list of useful objects like samples and truth
 simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness parameter (alpha in INLA speak)
-                  betas      = c(-3,-1,1,1)        ,  ##  Intercept coef and covariate coef For Linear predictors
+                  betas      = c(intercept_coef,seq(-1,1,length.out=num_covariates)) ,  ##  Intercept coef and covariate coef For Linear predictors
                   scale      = .1              ,  ##  Matern scale eparameter
-                  Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
-                  rho        = 0.9             ,  ##  AR1 term
+                  Sigma2     = (.25) ^ 2       ,  ##  Variance
+                  rho        = rho             ,  ##  AR1 term
                   l          = matrix_length             ,  ##  Matrix Length
                   n_clusters = n_clusters           ,  ##  number of clusters sampled ]
                   n_periods  = n_periods               ,  ##  number of periods (1 = no spacetime)
                   mean.exposure.months = mean.exposure.months ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
-                  ncovariates = 3              ,  ##  how many covariates to include?
+                  ncovariates = num_covariates   ,  ##  how many covariates to include?
                   seed   = NULL                ,
                   returnall=TRUE                ,
                   tvc     = TRUE) # time varying covariates. either way returns an nperiod length list of covariate rasters (if no tvc, they are dups)
