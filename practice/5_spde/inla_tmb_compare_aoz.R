@@ -137,6 +137,7 @@ sigma0=round(sigma0,3)
 mean(sigma1==sigma0)
 sigma0[10:20,10:20]
 sigma1[10:20,10:20]
+# SIGMA1 looks much more believeable
 ## fe_var_covar <- SD0$cov.fixed
 
 ##### Prediction

@@ -19,11 +19,13 @@ if( exists (commandArgs()[3]) ) { # if qsubbed
   n_clusters            <- as.numeric(commandArgs()[4])
   mean.exposure.months  <- as.numeric(commandArgs()[5])
   n_periods             <- as.numeric(commandArgs()[6])
+  run_date              <- as.character(commandArgs()[7])
 } else { # if testing interactively
   iii                   <- 1
   n_clusters            <- 50
   mean.exposure.months  <- 100
   n_periods             <- 4
+  run_date              <- 'test'
   system(paste0('cd ',dir,'\ngit pull origin develop'))
 }
 
@@ -66,6 +68,6 @@ v <- rbind(validate(tmb),validate(inla))
 
 ######
 ## write output
-fwrite(v,sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%i.csv',iii))
+fwrite(v,sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/%i.csv',run_date,iii))
 
 #comparison_plots()
