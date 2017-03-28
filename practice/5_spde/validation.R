@@ -22,10 +22,9 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   mean.exposure.months  <- as.numeric(commandArgs()[5])
   n_periods             <- as.numeric(commandArgs()[6])
   run_date              <- as.character(commandArgs()[7])
-  matrix_length         <- as.numeric(commandArgs()[8])
-  num_covariates        <- as.numeric(commandArgs()[9])
-  intercept_coef        <- as.numeric(commandArgs()[10])
-  rho                   <- as.numeric(commandArgs()[11])
+  num_covariates        <- as.numeric(commandArgs()[8])
+  intercept_coef        <- as.numeric(commandArgs()[9])
+  rho                   <- as.numeric(commandArgs()[10])
 } else { # if testing interactively
   iii                   <- 1
   n_clusters            <- 50
@@ -52,7 +51,7 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   scale      = .1              ,  ##  Matern scale eparameter
                   Sigma2     = (.25) ^ 2       ,  ##  Variance
                   rho        = rho             ,  ##  AR1 term
-                  l          = matrix_length             ,  ##  Matrix Length
+                  l          = 100             ,  ##  Matrix Length
                   n_clusters = n_clusters           ,  ##  number of clusters sampled ]
                   n_periods  = n_periods               ,  ##  number of periods (1 = no spacetime)
                   mean.exposure.months = mean.exposure.months ,  ##  mean exposure months per cluster
