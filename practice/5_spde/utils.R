@@ -523,7 +523,7 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
   return( list(pred = pred,
                 fit_time = fit_time,
                 predict_time = totalpredict_time,
-                modelobj = opt0,
+                modelobj = SD0,
                 model = 'tmb'))
 
 }
@@ -684,6 +684,28 @@ vv_num_data_points    <- nrow(so$d)
 vv_mean_ss            <- round(mean(so$d$exposures),0)
 vv_num_covariates     <- length(grep('X',names(so$d)))
 vv_average_true_p     <- mean(truth)
+
+# parameters # vars are from env (should change this.. )
+vv_intercept_coef       <- intercept_coef
+vv_rho                  <- rho
+
+if(fit$model=='tmb'){
+  vv_rho_diff           <- fit$modelobj$par.fixed[['rho']] - vv_rho
+  vv_rho_covered        <- vv_rho > (fit$modelobj$par.fixed[['rho']] - 1.96*sqrt(fit$modelobj$cov.fixed[['rho','rho']])) &
+                           vv_rho < (fit$modelobj$par.fixed[['rho']] + 1.96*sqrt(fit$modelobj$cov.fixed[['rho','rho']]))
+  vv_intercept_diff     <- fit$modelobj$par.fixed[[1]] - vv_intercept_coef
+  vv_intercept_covered  <- vv_intercept_coef > (fit$modelobj$par.fixed[[1]] - 1.96*sqrt(fit$modelobj$cov.fixed[[1,1]])) &
+                           vv_intercept_coef < (fit$modelobj$par.fixed[[1]] + 1.96*sqrt(fit$modelobj$cov.fixed[[1,1]]))
+}
+if(fit$model=='inla'){
+  vv_rho_diff           <- summary(fit$modelobj)$hyperpar[3,1] - vv.rho
+  vv_rho_covered        <- vv_rho >  summary(fit$modelobj)$hyperpar[3,3] &
+                           vv_rho <  summary(fit$modelobj)$hyperpar[3,5]
+  vv_intercept_diff     <- summary(fit$modelobj)$fixed['int','mean'] - vv_intercept_coef
+  vv_intercept_covered  <- vv_intercept_coef >  summary(fit$modelobj)$fixed['int',3] &
+                           vv_intercept_coef <  summary(fit$modelobj)$fixed['int',5]
+}
+
 
 # return a one row datatable with sensible column names
 res <- data.table(software=fit$model)
