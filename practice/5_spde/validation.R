@@ -15,7 +15,8 @@ dir <- paste0("/homes/",Sys.info()['user'],"/tmb_transition")
 setwd(paste0(dir,"/practice/5_spde"))
 
 if( !is.na(commandArgs()[3]) ) { # if qsubbed
-  print('This was qsubbed')
+  message('This was qsubbed')
+  message(commandArgs())
   iii                   <- as.numeric(commandArgs()[3])
   n_clusters            <- as.numeric(commandArgs()[4])
   mean.exposure.months  <- as.numeric(commandArgs()[5])
