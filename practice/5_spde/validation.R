@@ -22,9 +22,9 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   n_periods             <- as.numeric(commandArgs()[6])
   run_date              <- as.character(commandArgs()[7])
   matrix_length         <- as.numeric(commandArgs()[8])
-  intercept_coef        <- as.numeric(commandArgs()[9])
-  rho                   <- as.numeric(commandArgs()[10])
-  num_covariates        <- as.numeric(commandArgs()[11])
+  num_covariates        <- as.numeric(commandArgs()[9])
+  intercept_coef        <- as.numeric(commandArgs()[10])
+  rho                   <- as.numeric(commandArgs()[11])
 } else { # if testing interactively
   iii                   <- 1
   n_clusters            <- 50
