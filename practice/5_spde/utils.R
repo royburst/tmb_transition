@@ -823,10 +823,10 @@ comparison_plots <- function(filename='plot.pdf',
 
 ###########
 # plotting funct
-plotbenchmarks <- function( x, #x and y are the variables for axes
-                            y,
+plotbenchmarks <- function( x=NULL, #x and y are the variables for axes
+                            y=NULL,
                             rd=run_date,
-                            returncompileddata=FALSE) {
+                            justreturncompileddata=FALSE) {
   require(ggplot2)
 
   message(sprintf('compiling validation runs from  /home/j/temp/geospatial/tmb_testing/cluster_out/%s/',rd))
@@ -836,20 +836,24 @@ plotbenchmarks <- function( x, #x and y are the variables for axes
       d <- rbind(d,fread(sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s',rd,f)))
   dd<-copy(d)
 
-  #summarize
-  d[,mean_ss:=round(mean_ss,-2)]
-  d<-d[,.(yp=mean(get(y)),number_of_simulations=sum(.N)),by=.(software,get(x))]
+  if(!justreturncompileddata){
+    #summarize
+    d[,mean_ss:=round(mean_ss,-2)]
+    d[,total_time:=seconds_to_predict+seconds_to_fit]
+    d<-d[,.(yp=mean(get(y)),number_of_simulations=sum(.N)),by=.(software,get(x))]
 
-  filepath=sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s__%s_plot.pdf',rd,x,y)
+    filepath=sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s__%s_plot.pdf',rd,x,y)
 
-  message(sprintf('SAVING PLOT AT /home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s$s_plot.pdf',rd,x,y))
-  pdf(filepath,height=8,width=8)
-  g<-ggplot(d,aes(x=get,y=yp,col=software))+
-    geom_line(size=1)+geom_point(aes(size=number_of_simulations))+
-    ylab(y)+xlab(x)+
-    theme_bw()
-  print(g)
-  dev.off()
+    message(sprintf('SAVING PLOT AT /home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s$s_plot.pdf',rd,x,y))
+    pdf(filepath,height=8,width=8)
+    g<-ggplot(d,aes(x=get,y=yp,col=software))+
+      geom_line(size=1)+geom_point(aes(size=number_of_simulations))+
+      ylab(y)+xlab(x)+
+      theme_bw()
+    print(g)
+    dev.off()
 
-  if(returncompileddata) return(dd)
+  } else{
+    return(dd)
+  }
 }
