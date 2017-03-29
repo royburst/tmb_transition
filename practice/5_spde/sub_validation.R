@@ -9,7 +9,7 @@ setwd(paste0(dir,"/practice/5_spde"))
 
 
 mean.exposure.months  <- 1000
-n_periods             <- 4
+meshatdatalocs         <- TRUE
 intercept_coef        <- -3
 rho                   <- 0.9
 num_covariates        <- 3

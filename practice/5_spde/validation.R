@@ -20,7 +20,7 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   iii                   <- as.numeric(commandArgs()[3])
   n_clusters            <- as.numeric(commandArgs()[4])
   mean.exposure.months  <- as.numeric(commandArgs()[5])
-  n_periods             <- as.numeric(commandArgs()[6])
+  meshatdatalocs        <- as.numeric(commandArgs()[6])
   run_date              <- as.character(commandArgs()[7])
   num_covariates        <- as.numeric(commandArgs()[8])
   intercept_coef        <- as.numeric(commandArgs()[9])
@@ -29,7 +29,7 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   iii                   <- 1
   n_clusters            <- 50
   mean.exposure.months  <- 100
-  n_periods             <- 4
+  meshatdatalocs        <- FALSE
   run_date              <- 'test'
   matrix_length         <- 100
   intercept_coef        <- -3
@@ -53,7 +53,7 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   rho        = rho             ,  ##  AR1 term
                   l          = 100             ,  ##  Matrix Length
                   n_clusters = n_clusters           ,  ##  number of clusters sampled ]
-                  n_periods  = n_periods               ,  ##  number of periods (1 = no spacetime)
+                  n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
                   mean.exposure.months = mean.exposure.months ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = num_covariates   ,  ##  how many covariates to include?
@@ -63,7 +63,7 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
 
 ######
 ## pull out some useful data
-simdat <- getsimdata(simobj,meshatdatalocs=FALSE,options=1)
+simdat <- getsimdata(simobj,meshatdatalocs=meshatdatalocs,options=1)
 
 #####
 ## TMB
