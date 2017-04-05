@@ -27,12 +27,12 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   rho                   <- as.numeric(commandArgs()[10])
 } else { # if testing interactively
   iii                   <- 1
-  n_clusters            <- 50
-  mean.exposure.months  <- 100
+  n_clusters            <- 10000
+  mean.exposure.months  <- 1000
   meshatdatalocs        <- FALSE
   run_date              <- 'test'
   matrix_length         <- 100
-  intercept_coef        <- -3
+  intercept_coef        <- -5
   rho                   <- .9
   num_covariates        <- 3
   system(paste0('cd ',dir,'\ngit pull origin develop'))
