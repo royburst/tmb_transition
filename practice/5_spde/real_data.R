@@ -25,6 +25,12 @@ setwd(paste0(dir,"/practice/5_spde"))
 system(paste0('cd ',dir,'\ngit pull origin develop'))
 source('utils.R')
 
+# draws for prediction
+ndraws <- 10
+
+# make a chunky mesh or use the original?
+use_orig_mesh <- TRUE
+
 ####################################################
 ## pull in data
 ## LETS DO WSSA AGE BIN 2
@@ -34,7 +40,7 @@ load('/share/geospatial/mbg/u5m/died/model_image_history/2017_04_04_22_07_02_bin
 modnames      <-  c('gam','gbm','ridge','enet','lasso')
 child_fit_on  <-  '_cv_pred'
 df            <-  rbind(df[,paste0(modnames) := lapply(modnames, function(x) get(paste0(x,child_fit_on)))])
-df <- df[,c('N','died',modnames,'rates','period_id','latitude','longitude'),with=FALSE]
+df <- df[,c('N','died',modnames,'rates','period_id','latitude','longitude','weight'),with=FALSE]
 
 # na omit stuff
 nrow(df)
@@ -48,14 +54,16 @@ coords   <- cbind(df$longitude,df$latitude)
 X_xp = as.matrix(cbind(1, df[,c(modnames,'rates'),with=FALSE]))
 
 # try with a different mesh (too dense before?)
-mesh_orig <- list(s=mesh_s,t=mesh_t)
-simple_polygon_list <-  load_simple_polygon(gaul_list        = get_gaul_codes('wssa'),
-                                              buffer            = 0.4)
-simple_polygon   <- simple_polygon_list[[2]]
-mesh_s <- build_space_mesh(d = df,
-                           simple = simple_polygon,
-                           max_edge = 2,
-                           mesh_offset = 2)
+if(!use_orig_mesh){
+  mesh_orig <- list(s=mesh_s,t=mesh_t)
+  simple_polygon_list <-  load_simple_polygon(gaul_list        = get_gaul_codes('wssa'),
+                                                buffer            = 0.4)
+  simple_polygon   <- simple_polygon_list[[2]]
+  mesh_s <- build_space_mesh(d = df,
+                             simple = simple_polygon,
+                             max_edge = 2,
+                             mesh_offset = 2)
+}
 
 A.proj <- inla.spde.make.A(mesh  = mesh_s,
                            loc   = coords,
@@ -77,6 +85,7 @@ Data = list(n_i=nrow(df),                   ## Total number of observations
             Exp_i=df$N,             ## Number of observed exposures in the cluster (N in binomial likelihood)
             s_i=0:(nrow(X_xp)-1),                    ## no site specific effect in my model (different sampling locations in time)
             t_i=df$period_id-1,                ## Sample period ( starting at zero )
+            w_i=df$weight,
             X_xp=X_xp,                      ## Covariate design matrix
             G0=spde$param.inla$M0,          ## SPDE sparse matrix
             G1=spde$param.inla$M1,          ## SPDE sparse matrix
@@ -96,7 +105,7 @@ Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parame
 #########################################
 ####  fit using TMB
 message('compiling')
-templ <- "basic_spde" # _aoz" #spde2
+templ <- "basic_spde_weighted" # _aoz" #spde2
 TMB::compile(paste0(templ,".cpp"))
 dyn.load( dynlib(templ) )
 
@@ -126,7 +135,7 @@ fit_time <- proc.time()[3] - ptm
 ##### Make predictions
 
 ptm <- proc.time()[3]
-SD0 = sdreport(obj,getReportCovariance=TRUE,bias.correct=bias.correct)
+SD0 = sdreport(obj,getReportCovariance=TRUE) #,bias.correct=TRUE)
 tmb_sdreport_time <- proc.time()[3] - ptm
 
 mu    <- c(SD0$value)
@@ -143,9 +152,10 @@ while(!is.symmetric.matrix(sigma)){
 }
 message(sprintf("rounded sigma to %i decimals to make it symmetric", 10 - i - 1))
 
+# check we have a legit sigma matrix
+is.positive.definite(sigma)
 
 # predict out draws
-ndraws <- 10
 draws  <- t(mvrnorm(n=ndraws,mu=mu,Sigma=sigma))
 
 ## separate out the draws
@@ -198,12 +208,19 @@ cell_l <- do.call(rbind,vals)
 ## add together linear and st components
 pred <- cell_l + cell_s
 
+# save prediction timing
+totalpredict_time <- proc.time()[3] - ptm
 
+# plot it
+summ  <- cbind(median=(apply(pred,1,median))) #,sd=(apply(pred,1,sd)))
 
+# make a median raster
+ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,1]), t=rep(1:nperiods,each=nrow(pred)/nperiods)),"p","t")
 
-
-
-
-
-
+pdf('test2.pdf')
+plot(ras)
+dev.off()
 #########################################
+
+
+## Compare with INLA Predictions we have for this area as well
