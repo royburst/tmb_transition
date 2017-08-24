@@ -1,7 +1,7 @@
 rm(list=ls())
 gc()
 options(scipen=999)
-.libPaths('/home/j/temp/geospatial/packages')
+.libPaths("/home/j/temp/geospatial/geos_packages")
 
 library(INLA)
 library(TMB)
@@ -19,7 +19,7 @@ setwd(paste0(dir,"/practice/5_spde"))
 ## source some functions made for this bit
 source('utils.R')
 
-
+if( grepl('geos',Sys.info()['nodename'])) INLA:::inla.dynload.workaround()
 ###############################################################
 ## SIMULATE AND SET UP THE DATA
 ## Simulate a surface, this returns a list of useful objects like samples and truth
@@ -28,8 +28,8 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   scale      = .1              ,  ##  Matern scale eparameter
                   Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
                   rho        = 0.9             ,  ##  AR1 term
-                  l          = 50             ,  ##  Matrix Length
-                  n_clusters = 5000             ,  ##  number of clusters sampled ]
+                  l          = 50              ,  ##  Matrix Length
+                  n_clusters = 500             ,  ##  number of clusters sampled ]
                   n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
                   mean.exposure.months = 100   ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
@@ -146,8 +146,7 @@ opt0 <- do.call("nlminb",list(start       =    obj$par,
                               gradient    =    obj$gr,
                               lower       =    lower,
                               upper       =    upper,
-                              control     =    list(eval.max=1e4, iter.max=1e4, trace=1, rel.tol=.01,step.max=10)))
-
+                              control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
 tmb_fit_time <- proc.time()[3] - ptm
 
 ## opt0[["final_gradient"]] = obj$gr( opt0$par )
@@ -306,9 +305,7 @@ par_names <- rownames(draws[[1]]$latent)
 
 ## index to spatial field and linear coefficient samples
 s_idx <- grep('^space.*', par_names)
-l_idx <- match(sprintf('%s.1', res_fit$names.fixed),
-               par_names)
-
+l_idx <- which(!c(1:length(par_names)) %in% grep('^space.*|Predictor', par_names))
 
 ## get samples as matrices
 pred_s <- sapply(draws, function (x) x$latent[s_idx])

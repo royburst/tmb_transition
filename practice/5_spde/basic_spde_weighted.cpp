@@ -49,9 +49,9 @@ Type objective_function<Type>::operator() ()
   // objective function -- joint negative log-likelihood
   using namespace density;
   vector<Type> jnll_comp(3);
-  jnll_comp[0] = Type(0);
-  jnll_comp[1] = Type(0);
-  jnll_comp[2] = Type(0);
+  jnll_comp[0] = Type(0.0);
+  jnll_comp[1] = Type(0.0);
+  jnll_comp[2] = Type(0.0);
   //  parallel_accumulator<Type> jnll_comp[1](this);
   max_parallel_regions = omp_get_max_threads();
   printf("This is thread %d\n", max_parallel_regions);
@@ -60,10 +60,10 @@ Type objective_function<Type>::operator() ()
   Type kappa2 = exp(2.0*log_kappa);
   Type kappa4 = kappa2*kappa2;
   Type pi = 3.141592;
-  Type Range = sqrt(8) / exp( log_kappa );
-  Type SigmaE = 1 / sqrt(4*pi*exp(2*log_tau_E)*exp(2*log_kappa));
+  Type Range = sqrt(8.0) / exp( log_kappa );
+  Type SigmaE = 1.0 / sqrt(4.0*pi*exp(2.0*log_tau_E)*exp(2.0*log_kappa));
   Eigen::SparseMatrix<Type> Q = kappa4*G0 + Type(2.0)*kappa2*G1 + G2;
-  Type rho_trans = log((1+rho)/(1-rho));
+  Type rho_trans = log((1.0+rho)/(1.0-rho));
 
 
   // Objects for derived values

@@ -97,7 +97,7 @@ Type objective_function<Type>::operator() ()
   // Transform GMRFs and make vector form
   for(int x=0; x<n_x; x++){
     for(int t=0; t<n_t; t++){
-      Epsilon_xt(x,t) = epsilon(x,t) / exp(log_tau_E); // scale it // we probably don't need this anymore
+      Epsilon_xt(x,t) = epsilon(x,t) / exp(log_tau_E); // TODO Check this scaling. 
       epsilon_vec[(x + n_x*t)] = Epsilon_xt(x,t); // put in a vector
     }
   }

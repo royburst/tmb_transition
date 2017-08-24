@@ -4,8 +4,8 @@
 rm(list=ls())
 gc()
 options(scipen=999)
-.libPaths('/home/j/temp/geospatial/packages')
-
+#.libPaths('/home/j/temp/geospatial/packages')
+.libPaths("/home/j/temp/geospatial/geos_packages")
 library(matrixcalc)
 library(MASS)
 library(INLA)
