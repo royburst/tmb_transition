@@ -101,7 +101,7 @@ Type objective_function<Type>::operator() ()
 
 
   // Make spatial precision matrix
-  SparseMatrix<Type> Q_loc = spde_Q(logkappa, logtau, M0, M1, M2);
+  SparseMatrix<Type> Q_ss = spde_Q(logkappa, logtau, M0, M1, M2);
 
 
   // Make transformations of some of our parameters
@@ -136,13 +136,13 @@ Type objective_function<Type>::operator() ()
   // Latent field/Random effect contribution to likelihood.
   // Possibilities of Kronecker include: S, ST, SZ, and STZ
   if (num_t == 1 & num_z == 1)  {       // SPACE ONLY
-    jnll += GMRF(Q)(epsilon_stz);
+    jnll += GMRF(Q_ss)(epsilon_stz);
   } else if(num_t > 1 & num_z == 1) {   // SPACE-TIME
-    jnll += SEPARABLE(AR1(trho),GMRF(Q))(Epsilon_stz);
+    jnll += SEPARABLE(AR1(trho),GMRF(Q_ss))(Epsilon_stz);
   } else if (num_t == 1 & num_z > 1) {  // SPACE-Z
-    jnll += SEPARABLE(AR1(zrho),GMRF(Q))(Epsilon_stz);
+    jnll += SEPARABLE(AR1(zrho),GMRF(Q_ss))(Epsilon_stz);
   } else if (num_t > 1 & num_z > 1) {   // SPACE-TIME-Z
-    jnll += SEPARABLE(AR1(zrho),SEPARABLE(AR1(trho),GMRF(Q)))(Epsilon_stz);
+    jnll += SEPARABLE(AR1(zrho),SEPARABLE(AR1(trho),GMRF(Q_ss)))(Epsilon_stz);
   }
 
   // Transform GMRFs and make vector form
