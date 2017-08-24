@@ -166,7 +166,7 @@ Type objective_function<Type>::operator() ()
   for (int i = 0; i < num_i; i++){
     prob_i(i) = fe_i(i) + projepsilon_i(i);
     if(!isNA(y_i(i))){
-      jnll -= dbinom( y_i(i), num_i(i), invlogit(prob_i(i)), true ) * w_i(i);
+      jnll -= dbinom( y_i(i), n_i(i), invlogit(prob_i(i)), true ) * w_i(i);
     }
   }
 
