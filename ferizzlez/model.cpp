@@ -156,7 +156,8 @@ Type objective_function<Type>::operator() ()
   for(int s = 0; s < num_s; s++){
     for(int t = 0; t < num_t; t++){
       for(int z = 0; z < num_z; z++){
-        epsilon_stz[(s + num_s * t + num_t * z)] = Epsilon_stz(s,t,z); // put in a vector
+    //    epsilon_stz[(s + num_s * t + num_t * z)] = Epsilon_stz(s,t,z); // put in a vector
+        epsilon_stz[(s + num_s * t + num_t * z)] = Epsilon_stz(s,t); // put in a vector
       }
     }
   }
