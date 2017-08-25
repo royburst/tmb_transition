@@ -137,16 +137,16 @@ Type objective_function<Type>::operator() ()
   // Latent field/Random effect contribution to likelihood.
   // Possibilities of Kronecker include: S, ST, SZ, and STZ
   if (num_t == 1 & num_z == 1)  {
-    printf("SPACE  ONLY");
+    printf("GP FOR SPACE  ONLY \n");
     jnll += GMRF(Q_ss)(epsilon_stz);
   } else if(num_t > 1 & num_z == 1) {
-    printf("SPACE-TIME");
-    jnll += SEPARABLE(AR1(trho),GMRF(Q_ss))(Epsilon_stz);
+    printf("GP FOR SPACE-TIME \n");
+    jnll += SEPARABLE(GMRF(Q_ss),AR1(trho))(Epsilon_stz);
   } else if (num_t == 1 & num_z > 1) {
-    printf("SPACE-Z");
+    printf("GP FOR SPACE-Z \n");
     jnll += SEPARABLE(AR1(zrho),GMRF(Q_ss))(Epsilon_stz);
   } else if (num_t > 1 & num_z > 1) {
-    printf("SPACE-TIME-Z");
+    printf("GP FOR SPACE-TIME-Z \n");
     jnll += SEPARABLE(AR1(zrho),SEPARABLE(AR1(trho),GMRF(Q_ss)))(Epsilon_stz);
   }
 
