@@ -100,6 +100,7 @@ Type objective_function<Type>::operator() ()
   // this allows us to add or subtract numbers to the object in parallel
   parallel_accumulator<Type> jnll(this);
 
+  // print parallel info
   max_parallel_regions = omp_get_max_threads();
   printf("This is thread %d\n", max_parallel_regions);
 
@@ -107,20 +108,17 @@ Type objective_function<Type>::operator() ()
   SparseMatrix<Type> Q_ss = spde_Q(logkappa, logtau, M0, M1, M2);
   printf("Q_ss size: %d \n", Q_ss.size());
 
-
   // Make transformations of some of our parameters
   Type range     = sqrt(8.0) / exp(logkappa);
   Type sigma     = 1.0 / sqrt(4.0 * 3.14159265359 * exp(2.0 * logtau) * exp(2.0 * logkappa));
   Type trho_trans = log((1.0 + trho) / (1.0 - trho));
   Type zrho_trans = log((1.0 + zrho) / (1.0 - zrho));
 
-
   // Define objects for derived values
   vector<Type> fe_i(num_s);                         // main effect X_ij %*% t(alpha_j)
   vector<Type> epsilon_stz(num_s * num_t * num_z);  // Epsilon_stz unlisted into a vector for easier matrix multiplication
   vector<Type> projepsilon_i(num_i);                // value of gmrf at data points
   vector<Type> prob_i(num_i);                       // Logit estimated prob for each point i
-
 
   // Prior contribution to likelihood. Values are defaulted (for now). Only run if options[0]==1
   if(options[0] == 1) {
@@ -154,12 +152,15 @@ Type objective_function<Type>::operator() ()
   }
 
   // Transform GMRFs and make vector form
-  // TODO check indexing
   for(int s = 0; s < num_s; s++){
     for(int t = 0; t < num_t; t++){
-      for(int z = 0; z < num_z; z++){
-    //    epsilon_stz[(s + num_s * t + num_t * z)] = Epsilon_stz(s,t,z); // put in a vector
-        epsilon_stz[(s + num_s * t )] = Epsilon_stz(s,t); // put in a vector
+      if(num_z == 1) {
+        epsilon_stz[(s + num_s * t )] = Epsilon_stz(s,t);
+      } else {
+        for(int z = 0; z < num_z; z++){
+          // TODO check indexing on this one
+          epsilon_stz[(s + num_s * t + num_t * z)] = Epsilon_stz(s,t,z);
+        }
       }
     }
   }

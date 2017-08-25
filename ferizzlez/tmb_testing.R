@@ -104,33 +104,35 @@ Parameters = list(alpha_j   =  rep(0,ncol(X_xp)),                 ## FE paramete
                   logkappa=0.0,	                                  ## Matern Range parameter
                   trho=0.5,
                   zrho=0.5,
-                  Epsilon_stz=array(1, c(mesh_s$n, nperiod)))     ## GP locations
+                  Epsilon_stz=matrix(1, nrow=mesh_s$n, ncol=nperiod))     ## GP locations
 
 ##########################################################
 ### FIT MODEL
 ## Make object
 ## Compile
+system(paste0('cd ',dir,'\ngit pull origin develop'))
+
 templ <- "model"
 TMB::compile(paste0(templ,".cpp"))
 dyn.load( dynlib(templ) )
 
-
-obj <- MakeADFun(data=Data, parameters=Parameters, random="epsilon", hessian=TRUE, DLL=templ)
+#openmp(10)
+obj <- MakeADFun(data=Data, parameters=Parameters,  map=list(zrho=factor(NA)), random="Epsilon_stz", hessian=TRUE, DLL=templ)
 
 
 ## Run optimizer
 ptm <- proc.time()[3]
 opt0 <- do.call("nlminb",list(start       =    obj$par,
                               objective   =    obj$fn,
-                              gradient    =    obj$gr,
-                              control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
+                              gradient    =    obj$gr))
+                        #      control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
 tmb_fit_time <- proc.time()[3] - ptm
 
 
 # Get standard errors
 ## Report0 = obj$report()
 ptm <- proc.time()[3]
-SD0 = sdreport(obj,getReportCovariance=TRUE)
+SD0 <- sdreport(obj,getReportCovariance=TRUE)
 ## fe_var_covar <- SD0$cov.fixed
 tmb_sdreport_time <- proc.time()[3] - ptm
 
@@ -179,8 +181,8 @@ draws  <- t(mvrnorm(n=ndraws,mu=mu,Sigma=sigma))
 ## ^ look for a quicker way to do this..cholesky
 
 ## separate out the draws
-epsilon_draws <- draws[rownames(draws)=='Epsilon_xt',]
-alpha_draws   <- draws[rownames(draws)=='alpha',]
+epsilon_draws <- draws[rownames(draws)=='Epsilon_stz',]
+alpha_draws   <- draws[rownames(draws)=='alpha_j',]
 
 ## get surface to project on to
 pcoords = cbind(x=simobj$fullsamplespace$x, y=simobj$fullsamplespace$y)
