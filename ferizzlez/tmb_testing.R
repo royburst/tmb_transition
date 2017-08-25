@@ -82,62 +82,40 @@ A.proj <- inla.spde.make.A(mesh  = mesh_s,
 X_xp = as.matrix(cbind(1, dt[,names(simobj$cov.raster.list[[1]]),with=FALSE]))
 
 
-Data = list(n_i=nrow(dt),                   ## Total number of observations
-            n_x=mesh_s$n,                   ## Number of vertices in SPDE mesh
-            n_t=nperiod,                    ## Number of periods
-            n_p=ncol(X_xp),                 ## Number of columns in covariate matrix X
-##            x_s=mesh_s$idx$loc-1,           ## Association of each cluster with a given vertex in SPDE mesh
-            c_i=dt$deaths,                  ## Number of observed deaths in the cluster (N+ in binomial likelihood)
-            Exp_i=dt$exposures,             ## Number of observed exposures in the cluster (N in binomial likelihood)
-            s_i=dt$id-1,                    ## no site specific effect in my model (different sampling locations in time)
+Data = list(num_i=nrow(dt),                 ## Total number of observations
+            num_s=mesh_s$n,                 ## Number of vertices in SPDE mesh
+            num_t=nperiod,                  ## Number of periods
+            num_z=1,
+            y_i=dt$deaths,                  ## Number of observed deaths in the cluster (N+ in binomial likelihood)
+            n_i=dt$exposures,               ## Number of observed exposures in the cluster (N in binomial likelihood)
             t_i=dt$period-1,                ## Sample period ( starting at zero )
-            X_xp=X_xp,                      ## Covariate design matrix
-            G0=spde$param.inla$M0,          ## SPDE sparse matrix
-            G1=spde$param.inla$M1,          ## SPDE sparse matrix
-            G2=spde$param.inla$M2,          ## SPDE sparse matrix
+            w_i=rep(1,nrow(dt)),
+            X_ij=X_xp,                      ## Covariate design matrix
+            M0=spde$param.inla$M0,          ## SPDE sparse matrix
+            M1=spde$param.inla$M1,          ## SPDE sparse matrix
+            M2=spde$param.inla$M2,          ## SPDE sparse matrix
             Aproj = A.proj,                 ## mesh to prediction point projection matrix
             options = c(1))                 ## option1==1 use priors
-            #spde=(spde$param.inla)[c('M1','M2','M3')])
+
 
 ## staring values for parameters
-Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parameters alphas
-                  log_tau_E=1.0,                                    ## log inverse of tau  (Epsilon)
-                  log_kappa=0.0,	                                  ## Matern Range parameter
-                  rho=0.5,
-                  epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n))     ## GP locations
+Parameters = list(alpha_j   =  rep(0,ncol(X_xp)),                 ## FE parameters alphas
+                  logtau=1.0,                                     ## log inverse of tau  (Epsilon)
+                  logkappa=0.0,	                                  ## Matern Range parameter
+                  trho=0.5,
+                  zrho=0.5,
+                  Epsilon_stz=array(1, c(mesh_s$n, nperiod)))     ## GP locations
 
 ##########################################################
 ### FIT MODEL
 ## Make object
 ## Compile
-templ <- "basic_spde" # _aoz" #spde2
+templ <- "model"
 TMB::compile(paste0(templ,".cpp"))
 dyn.load( dynlib(templ) )
 
-#library(parallel)
-#openmp(0) # any nyumber other than 1 does not converge or speed up.
-# map to kill certain variables
 
-# a quick run to get starting values of fixed effects
-not_phase1 = list(log_tau_E=as.factor(NA),log_kappa=as.factor(NA),rho=as.factor(NA),epsilon=factor(rep(NA,mesh_s$n*nperiod)))
-obj <- MakeADFun(data=Data, parameters=Parameters, map=not_phase1, DLL=templ)
-x   <- do.call('optim',obj)
-Parameters$alpha <- x$par
-
-#bounds
-lower       =    c(rep(-20,dim(X_xp)[2]),rep(-10,2),-0.999)
-upper       =    c(rep(20 ,dim(X_xp)[2]),rep( 10,2), 0.999)
-
-# cancel out rho if needed
-mapout <- list()
-if(nperiod == 1){
-  lower  <- lower[-1]
-  upper  <- upper[-1]
-  mapout <- list(rho=factor(NA))
-}
-# make object
-#openmp(2)
-obj <- MakeADFun(data=Data, parameters=Parameters, map=mapout, random="epsilon", hessian=TRUE, DLL=templ)
+obj <- MakeADFun(data=Data, parameters=Parameters, random="epsilon", hessian=TRUE, DLL=templ)
 
 ## Run optimizer
 ptm <- proc.time()[3]
@@ -149,22 +127,6 @@ opt0 <- do.call("nlminb",list(start       =    obj$par,
                               control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
 tmb_fit_time <- proc.time()[3] - ptm
 
-## opt0[["final_gradient"]] = obj$gr( opt0$par )
-## head(summary(SD0))
-
-
-# try benchmarking
-if(T==F){
-  ben <- benchmark(obj, n=1, cores=seq(1,10,by=2), expr=expression(do.call("nlminb",list(start       =    obj$par,
-                          objective   =    obj$fn,
-                          gradient    =    obj$gr,
-                          lower       =    lower,
-                          upper       =    upper,
-                          control     =    list(eval.max=1e4, iter.max=1e4, trace=0)))))
-  png( file="Benchmark.png", width=6, height=6, res=200, units="in")
-  plot(ben)
-  dev.off()
-}
 
 # Get standard errors
 ## Report0 = obj$report()
