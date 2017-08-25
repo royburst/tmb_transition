@@ -90,7 +90,7 @@ Type objective_function<Type>::operator() ()
   // Random effects
   PARAMETER_ARRAY(Epsilon_stz); // Random effects for each STZ mesh location. Should be 3D array of dimensions num_s by num_t by num_z
 
-//  printf("Epsilon_stz dimensions: %d \n", sizeof(Epsilon_stz[0])); // , Epsilon_stz.size()/sizeof(Epsilon_stz[0]));
+  printf("Epsilon_stz size: %d \n", Epsilon_stz.size());
 
   // ////////////////////////////////////////////////////////////////////////////
   // LIKELIHOOD
@@ -103,6 +103,7 @@ Type objective_function<Type>::operator() ()
 
   // Make spatial precision matrix
   SparseMatrix<Type> Q_ss = spde_Q(logkappa, logtau, M0, M1, M2);
+  printf("Q_ss size: %d \n", Q_ss.size());
 
 
   // Make transformations of some of our parameters
@@ -141,7 +142,7 @@ Type objective_function<Type>::operator() ()
     jnll += GMRF(Q_ss)(epsilon_stz);
   } else if(num_t > 1 & num_z == 1) {
     printf("GP FOR SPACE-TIME \n");
-    jnll += SEPARABLE(GMRF(Q_ss),AR1(trho))(Epsilon_stz);
+    jnll += SEPARABLE(AR1(trho),GMRF(Q_ss))(Epsilon_stz);
   } else if (num_t == 1 & num_z > 1) {
     printf("GP FOR SPACE-Z \n");
     jnll += SEPARABLE(AR1(zrho),GMRF(Q_ss))(Epsilon_stz);
