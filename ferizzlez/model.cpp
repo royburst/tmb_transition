@@ -100,6 +100,8 @@ Type objective_function<Type>::operator() ()
   // this allows us to add or subtract numbers to the object in parallel
   parallel_accumulator<Type> jnll(this);
 
+  max_parallel_regions = omp_get_max_threads();
+  printf("This is thread %d\n", max_parallel_regions);
 
   // Make spatial precision matrix
   SparseMatrix<Type> Q_ss = spde_Q(logkappa, logtau, M0, M1, M2);
