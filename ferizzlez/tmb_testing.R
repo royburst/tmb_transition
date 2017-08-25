@@ -117,13 +117,12 @@ dyn.load( dynlib(templ) )
 
 obj <- MakeADFun(data=Data, parameters=Parameters, random="epsilon", hessian=TRUE, DLL=templ)
 
+
 ## Run optimizer
 ptm <- proc.time()[3]
 opt0 <- do.call("nlminb",list(start       =    obj$par,
                               objective   =    obj$fn,
                               gradient    =    obj$gr,
-                              lower       =    lower,
-                              upper       =    upper,
                               control     =    list(eval.max=1e4, iter.max=1e4, trace=1)))
 tmb_fit_time <- proc.time()[3] - ptm
 

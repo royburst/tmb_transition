@@ -90,7 +90,7 @@ Type objective_function<Type>::operator() ()
   // Random effects
   PARAMETER_ARRAY(Epsilon_stz); // Random effects for each STZ mesh location. Should be 3D array of dimensions num_s by num_t by num_z
 
-  printf("Epsilon_stz dimensions: %d %d\n", Epsilon_stz[0].size(), Epsilon_stz[1].size());
+  printf("Epsilon_stz dimensions: %d %d\n", Epsilon_stz.size()[0], Epsilon_stz.size()[1]);
 
   // ////////////////////////////////////////////////////////////////////////////
   // LIKELIHOOD
