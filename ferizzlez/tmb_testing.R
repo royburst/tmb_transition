@@ -23,15 +23,16 @@ if( grepl('geos',Sys.info()['nodename'])) INLA:::inla.dynload.workaround()
 ###############################################################
 ## SIMULATE AND SET UP THE DATA
 ## Simulate a surface, this returns a list of useful objects like samples and truth
+
 simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness parameter (alpha in INLA speak)
                   betas      = c(-3,-1,1,1)    ,  ##  Intercept coef and covariate coef For Linear predictors
                   scale      = .1              ,  ##  Matern scale eparameter
                   Sigma2     = (.25) ^ 2       ,  ##  Variance (Nugget)
                   rho        = 0.9             ,  ##  AR1 term
                   l          = 50              ,  ##  Matrix Length
-                  n_clusters = 500             ,  ##  number of clusters sampled ]
+                  n_clusters = 5000             ,  ##  number of clusters sampled ]
                   n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
-                  mean.exposure.months = 100   ,  ##  mean exposure months per cluster
+                  mean.exposure.months = 1000   ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = 3              ,  ##  how many covariates to include?
                   seed   = NULL                ,
@@ -135,6 +136,14 @@ ptm <- proc.time()[3]
 SD0 <- sdreport(obj,getReportCovariance=TRUE)
 ## fe_var_covar <- SD0$cov.fixed
 tmb_sdreport_time <- proc.time()[3] - ptm
+
+
+logtau  = SD0$par.fixed['logtau']
+logkappa = SD0$par.fixed['logkappa']
+unname(sqrt(8.0) / exp(logkappa))
+unname(1.0 / sqrt(4.0 * 3.14159265359 * exp(2.0 * logtau) * exp(2.0 * logkappa)))
+
+
 
 ##### Prediction
 message('making predictions')
