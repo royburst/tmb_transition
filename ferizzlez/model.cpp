@@ -90,6 +90,7 @@ Type objective_function<Type>::operator() ()
   // Random effects
   PARAMETER_ARRAY(Epsilon_stz); // Random effects for each STZ mesh location. Should be 3D array of dimensions num_s by num_t by num_z
 
+  printf("Epsilon_stz dimensions: %d\n", Epsilon_stz.size())
 
   // ////////////////////////////////////////////////////////////////////////////
   // LIKELIHOOD
@@ -135,13 +136,17 @@ Type objective_function<Type>::operator() ()
 
   // Latent field/Random effect contribution to likelihood.
   // Possibilities of Kronecker include: S, ST, SZ, and STZ
-  if (num_t == 1 & num_z == 1)  {       // SPACE ONLY
+  if (num_t == 1 & num_z == 1)  {
+    printf("SPACE  ONLY");
     jnll += GMRF(Q_ss)(epsilon_stz);
-  } else if(num_t > 1 & num_z == 1) {   // SPACE-TIME
+  } else if(num_t > 1 & num_z == 1) {
+    printf("SPACE-TIME");
     jnll += SEPARABLE(AR1(trho),GMRF(Q_ss))(Epsilon_stz);
-  } else if (num_t == 1 & num_z > 1) {  // SPACE-Z
+  } else if (num_t == 1 & num_z > 1) {
+    printf("SPACE-Z");
     jnll += SEPARABLE(AR1(zrho),GMRF(Q_ss))(Epsilon_stz);
-  } else if (num_t > 1 & num_z > 1) {   // SPACE-TIME-Z
+  } else if (num_t > 1 & num_z > 1) {
+    printf("SPACE-TIME-Z");
     jnll += SEPARABLE(AR1(zrho),SEPARABLE(AR1(trho),GMRF(Q_ss)))(Epsilon_stz);
   }
 
