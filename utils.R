@@ -326,30 +326,29 @@ getsimdata <- function(simobj,               # simobj is a list returned from mo
   ##model frame
   X_xp = as.matrix(cbind(1, dt[,names(simobj$cov.raster.list[[1]]),with=FALSE]))
 
-
-  Data = list(n_i=nrow(dt),                   ## Total number of observations
-              n_x=mesh_s$n,                   ## Number of vertices in SPDE mesh
-              n_t=nperiod,                    ## Number of periods
-              n_p=ncol(X_xp),                 ## Number of columns in covariate matrix X
-  ##            x_s=mesh_s$idx$loc-1,           ## Association of each cluster with a given vertex in SPDE mesh
-              c_i=dt$deaths,                  ## Number of observed deaths in the cluster (N+ in binomial likelihood)
-              Exp_i=dt$exposures,             ## Number of observed exposures in the cluster (N in binomial likelihood)
-              s_i=dt$id-1,                    ## no site specific effect in my model (different sampling locations in time)
+  Data = list(num_i=nrow(dt),                 ## Total number of observations
+              num_s=mesh_s$n,                 ## Number of vertices in SPDE mesh
+              num_t=nperiod,                  ## Number of periods
+              num_z=1,
+              y_i=dt$deaths,                  ## Number of observed deaths in the cluster (N+ in binomial likelihood)
+              n_i=dt$exposures,               ## Number of observed exposures in the cluster (N in binomial likelihood)
               t_i=dt$period-1,                ## Sample period ( starting at zero )
-              X_xp=X_xp,                      ## Covariate design matrix
-              G0=spde$param.inla$M0,          ## SPDE sparse matrix
-              G1=spde$param.inla$M1,          ## SPDE sparse matrix
-              G2=spde$param.inla$M2,          ## SPDE sparse matrix
+              w_i=rep(1,nrow(dt)),
+              X_ij=X_xp,                      ## Covariate design matrix
+              M0=spde$param.inla$M0,          ## SPDE sparse matrix
+              M1=spde$param.inla$M1,          ## SPDE sparse matrix
+              M2=spde$param.inla$M2,          ## SPDE sparse matrix
               Aproj = A.proj,                 ## mesh to prediction point projection matrix
-              options = options)                 ## option1==1 use priors
-              #spde=(spde$param.inla)[c('M1','M2','M3')])
+              options = c(1))                 ## option1==1 use priors
+
 
   ## staring values for parameters
-  Parameters = list(alpha   =  rep(0,ncol(X_xp)),                     ## FE parameters alphas
-                    log_tau_E=1.0,                                    ## log inverse of tau  (Epsilon)
-                    log_kappa=0.0,	                                  ## Matern Range parameter
-                    rho=0.5,
-                    epsilon=matrix(1,ncol=nperiod,nrow=mesh_s$n))     ## GP locations
+  Parameters = list(alpha_j   =  rep(0,ncol(X_xp)),                 ## FE parameters alphas
+                    logtau=1.0,                                     ## log inverse of tau  (Epsilon)
+                    logkappa=0.0,	                                  ## Matern Range parameter
+                    trho=0.5,
+                    zrho=0.5,
+                    Epsilon_stz=matrix(1, nrow=mesh_s$n, ncol=nperiod))     ## GP locations
 
 
   return( list( dt      = dt,
@@ -391,26 +390,28 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
 
   #openmp(cores) # any nyumber other than 1 does not converge or speed up.
   # map to kill certain variables
-  lower =  c(rep(-20,dim(X_xp)[2]),rep(-10,2),-0.999)
-  upper =  c(rep( 20,dim(X_xp)[2]),rep( 10,2), 0.999)
+  #lower =  c(rep(-20,dim(X_xp)[2]),rep(-10,2),-0.999)
+  #upper =  c(rep( 20,dim(X_xp)[2]),rep( 10,2), 0.999)
 
   # cancel out rho if needed
   mapout <- list()
   if(nperiod == 1){
-    lower  <- lower[-1]
-    upper  <- upper[-1]
-    mapout <- list(rho=factor(NA))
+    #lower  <- lower[-1]
+    #upper  <- upper[-1]
+    mapout <- list(trho=factor(NA),zrho=factor(NA))
+  } else {
+    mapout <- list(zrho=factor(NA))     # for now, since we havent implemented Zs
   }
   # make object
   ptm <- proc.time()[3]
-  obj <- MakeADFun(data=tmbdata, parameters=tmbpars, map=mapout, random="epsilon", hessian=TRUE, DLL=templ)
+  obj <- MakeADFun(data=tmbdata, parameters=tmbpars, map=mapout, random="Epsilon_stz", hessian=TRUE, DLL=templ)
 
   ## Run optimizer
   opt0 <- do.call("nlminb",list(start       =    obj$par,
                                 objective   =    obj$fn,
                                 gradient    =    obj$gr,
-                                lower       =    lower,
-                                upper       =    upper,
+                                #lower       =    lower,
+                                #upper       =    upper,
                                 control     =    list(eval.max=1e4, iter.max=1e4, trace=1))) # rel.tol=.01,step.max=10)))
 
   fit_time <- proc.time()[3] - ptm
@@ -488,8 +489,8 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
   ## ^ look for a quicker way to do this..cholesky
 
   ## separate out the draws
-  epsilon_draws <- draws[rownames(draws)=='Epsilon_xt',]
-  alpha_draws   <- draws[rownames(draws)=='alpha',]
+  epsilon_draws <- draws[rownames(draws)=='Epsilon_stz',]
+  alpha_draws   <- draws[rownames(draws)=='alpha_j',]
 
   ## get surface to project on to
   pcoords = cbind(x=fullsamplespace$x, y=fullsamplespace$y)
@@ -594,8 +595,7 @@ fit_n_pred_INLA <- function( cores = 1,
 
   ## index to spatial field and linear coefficient samples
   s_idx <- grep('^space.*', par_names)
-  l_idx <- match(sprintf('%s.1', res_fit$names.fixed),
-                 par_names)
+  l_idx <- which(!c(1:length(par_names)) %in% grep('^space.*|Predictor', par_names))
 
 
   ## get samples as matrices
@@ -652,67 +652,68 @@ fit_n_pred_INLA <- function( cores = 1,
 # compare outputs.
 # get mse, absE, relE, morans I (error), coverage, 2 types of correlation, coverage
 validate <- function(fit,       # fit object from tmb or inla
-                     so=simobj    # the sim object
-                     ){
+                     so=simobj,    # the sim object
+                     trho_true=rho,
+                     intercept_coef_true=intercept_coef){
 
-## summarize predictions and truth and errors
-summ  <- cbind(median=(apply(fit$pred,1,median)),sd=(apply(fit$pred,1,sd)))
-truth <- qlogis(as.vector(so$r.true.mr))
-err   <- summ[,1]-truth
+  ## summarize predictions and truth and errors
+  summ  <- cbind(median=(apply(fit$pred,1,median)),sd=(apply(fit$pred,1,sd)))
+  truth <- qlogis(as.vector(so$r.true.mr))
+  err   <- summ[,1]-truth
 
-# calculate some things of interest
-vv_root_mean_squared_error <- mean(err^2)^(1/2)
-vv_mean_absolute_error     <- mean(abs(err))
-vv_mean_error              <- mean(err)
-vv_relative_mean_error     <- mean(err)/mean(truth)
-vv_corr_pearson            <- cor(cbind(summ[,1],truth),method='pearson')[1,2]
-vv_corr_spearman           <- cor(cbind(summ[,1],truth),method='spearman')[1,2]
+  # calculate some things of interest
+  vv_root_mean_squared_error <- mean(err^2)^(1/2)
+  vv_mean_absolute_error     <- mean(abs(err))
+  vv_mean_error              <- mean(err)
+  vv_relative_mean_error     <- mean(err)/mean(truth)
+  vv_corr_pearson            <- cor(cbind(summ[,1],truth),method='pearson')[1,2]
+  vv_corr_spearman           <- cor(cbind(summ[,1],truth),method='spearman')[1,2]
 
-# coverage
-# a pixel is considered covered if the truth lies with alpha percentage
-vv_coverage_95 <- mean(truth > apply(fit$pred,1,quantile,0.025) & truth < apply(fit$pred,1,quantile,0.975))
-vv_coverage_80 <- mean(truth > apply(fit$pred,1,quantile,0.100) & truth < apply(fit$pred,1,quantile,0.900))
-vv_coverage_50 <- mean(truth > apply(fit$pred,1,quantile,0.250) & truth < apply(fit$pred,1,quantile,0.750))
+  # coverage
+  # a pixel is considered covered if the truth lies with alpha percentage
+  vv_coverage_95 <- mean(truth > apply(fit$pred,1,quantile,0.025) & truth < apply(fit$pred,1,quantile,0.975))
+  vv_coverage_80 <- mean(truth > apply(fit$pred,1,quantile,0.100) & truth < apply(fit$pred,1,quantile,0.900))
+  vv_coverage_50 <- mean(truth > apply(fit$pred,1,quantile,0.250) & truth < apply(fit$pred,1,quantile,0.750))
 
-# timing info
-vv_seconds_to_fit     <- fit$fit_time
-vv_seconds_to_predict <- fit$predict_time
+  # timing info
+  vv_seconds_to_fit     <- fit$fit_time
+  vv_seconds_to_predict <- fit$predict_time
 
-# numbers of inputs (clusters, time bins, covariates, etc)
-vv_time_periods       <- length(unique(so$d$period))
-vv_num_data_points    <- nrow(so$d)
-vv_mean_ss            <- round(mean(so$d$exposures),0)
-vv_num_covariates     <- length(grep('X',names(so$d)))
-vv_average_true_p     <- mean(truth)
+  # numbers of inputs (clusters, time bins, covariates, etc)
+  vv_time_periods       <- length(unique(so$d$period))
+  vv_num_data_points    <- nrow(so$d)
+  vv_mean_ss            <- round(mean(so$d$exposures),0)
+  vv_num_covariates     <- length(grep('X',names(so$d)))
+  vv_average_true_p     <- mean(truth)
 
-# parameters # vars are from env (should change this.. )
-vv_intercept_coef       <- intercept_coef
-vv_rho                  <- rho
+  # parameters # vars are from env (should change this.. )
+  vv_intercept_coef       <- intercept_coef_true
+  vv_rho                  <- trho_true
 
-if(fit$model=='tmb'){
-  vv_rho_diff           <- fit$modelobj$par.fixed[['rho']] - vv_rho
-  vv_rho_covered        <- vv_rho > (fit$modelobj$par.fixed[['rho']] - 1.96*sqrt(fit$modelobj$cov.fixed[['rho','rho']])) &
-                           vv_rho < (fit$modelobj$par.fixed[['rho']] + 1.96*sqrt(fit$modelobj$cov.fixed[['rho','rho']]))
-  vv_intercept_diff     <- fit$modelobj$par.fixed[[1]] - vv_intercept_coef
-  vv_intercept_covered  <- vv_intercept_coef > (fit$modelobj$par.fixed[[1]] - 1.96*sqrt(fit$modelobj$cov.fixed[[1,1]])) &
-                           vv_intercept_coef < (fit$modelobj$par.fixed[[1]] + 1.96*sqrt(fit$modelobj$cov.fixed[[1,1]]))
-}
-if(fit$model=='inla'){
-  vv_rho_diff           <- summary(fit$modelobj)$hyperpar[3,1] - vv_rho
-  vv_rho_covered        <- vv_rho >  summary(fit$modelobj)$hyperpar[3,3] &
-                           vv_rho <  summary(fit$modelobj)$hyperpar[3,5]
-  vv_intercept_diff     <- summary(fit$modelobj)$fixed['int','mean'] - vv_intercept_coef
-  vv_intercept_covered  <- vv_intercept_coef >  summary(fit$modelobj)$fixed['int',3] &
-                           vv_intercept_coef <  summary(fit$modelobj)$fixed['int',5]
-}
+  if(fit$model=='tmb'){
+    vv_rho_diff           <- fit$modelobj$par.fixed[['trho']] - vv_rho
+    vv_rho_covered        <- vv_rho > (fit$modelobj$par.fixed[['trho']] - 1.96*sqrt(fit$modelobj$cov.fixed[['trho','trho']])) &
+                             vv_rho < (fit$modelobj$par.fixed[['trho']] + 1.96*sqrt(fit$modelobj$cov.fixed[['trho','trho']]))
+    vv_intercept_diff     <- fit$modelobj$par.fixed[[1]] - vv_intercept_coef
+    vv_intercept_covered  <- vv_intercept_coef > (fit$modelobj$par.fixed[[1]] - 1.96*sqrt(fit$modelobj$cov.fixed[[1,1]])) &
+                             vv_intercept_coef < (fit$modelobj$par.fixed[[1]] + 1.96*sqrt(fit$modelobj$cov.fixed[[1,1]]))
+  }
+  if(fit$model=='inla'){
+    vv_rho_diff           <- summary(fit$modelobj)$hyperpar[3,1] - vv_rho
+    vv_rho_covered        <- vv_rho >  summary(fit$modelobj)$hyperpar[3,3] &
+                             vv_rho <  summary(fit$modelobj)$hyperpar[3,5]
+    vv_intercept_diff     <- summary(fit$modelobj)$fixed['int','mean'] - vv_intercept_coef
+    vv_intercept_covered  <- vv_intercept_coef >  summary(fit$modelobj)$fixed['int',3] &
+                             vv_intercept_coef <  summary(fit$modelobj)$fixed['int',5]
+  }
 
 
-# return a one row datatable with sensible column names
-res <- data.table(software=fit$model)
-for(var in ls()[grep('vv_',ls())])
-  res[[gsub('vv_','',var)]]=get(var)
+  # return a one row datatable with sensible column names
+  res <- data.table(software=fit$model)
+  for(var in ls()[grep('vv_',ls())])
+    res[[gsub('vv_','',var)]]=get(var)
 
-return(res)
+  return(res)
 }
 
 
@@ -856,4 +857,18 @@ plotbenchmarks <- function( x=NULL, #x and y are the variables for axes
   } else{
     return(dd)
   }
+}
+
+
+start_psample <- function(repo=dir,rd=run_date,psf){
+  system(paste0(repo, '/ferizzlez/psample --showthreads ',
+                sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s',
+                         rd, psf)),wait=FALSE)
+}
+
+stop_psample <- function(){
+  my_pid  <- Sys.getpid()
+  fname <- paste0("$(hostname).", my_pid, ".pid")
+  cmd <- paste0("kill $(cat $HOME/", fname, ")")
+  system(cmd)
 }
