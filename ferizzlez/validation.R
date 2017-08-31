@@ -65,7 +65,8 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
 
 ######
 ## pull out some useful data
-simdat <- getsimdata(simobj,meshatdatalocs=FALSE,options=1)
+if(grepl('geos',Sys.info()['nodename']))  INLA:::inla.dynload.workaround()
+simdat <- getsimdata(simobj,meshatdatalocs=meshatdatalocs,options=1)
 
 #####
 ## TMB
