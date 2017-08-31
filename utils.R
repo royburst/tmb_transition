@@ -581,7 +581,7 @@ fit_n_pred_INLA <- function( cores = 1,
                   control.inla = list(int.strategy = 'eb', h = 1e-3, tolerance = 1e-6),
                   control.compute=list(config = TRUE),
                   family = 'binomial',
-                  num.threads = 10,
+                  num.threads = 1,
                   Ntrials = dt$exposures,
                   verbose = TRUE,
                   keep = TRUE)
