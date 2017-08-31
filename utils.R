@@ -860,13 +860,18 @@ plotbenchmarks <- function( x=NULL, #x and y are the variables for axes
 }
 
 
+
+# start a psample script
 start_psample <- function(repo=dir,rd=run_date,psf){
-  system(paste0(repo, '/ferizzlez/psample --showthreads ',
+  system('dos2unix -n psample psample')
+  system(paste0(repo, '/ferizzlez/psample --showthreads --pid=',Sys.getpid(),' ',
                 sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s',
                          rd, psf)),wait=FALSE)
 }
 
+# stop a psample script
 stop_psample <- function(){
+  Sys.sleep(10)
   my_pid  <- Sys.getpid()
   fname <- paste0("$(hostname).", my_pid, ".pid")
   cmd <- paste0("kill $(cat $HOME/", fname, ")")
