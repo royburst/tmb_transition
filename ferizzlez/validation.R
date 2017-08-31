@@ -65,7 +65,7 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
 
 ######
 ## pull out some useful data
-simdat <- getsimdata(simobj,meshatdatalocs=meshatdatalocs,options=1)
+simdat <- getsimdata(simobj,meshatdatalocs=FALSE,options=1)
 
 #####
 ## TMB
