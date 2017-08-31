@@ -39,16 +39,19 @@
 
 use strict;
 use POSIX qw(floor);
+use English;
 
 my $output;
 my $sample = 5;
 my $showthreads = 0;
+my $Rpid = 0;
+
 
 foreach my $arg (@ARGV)
 {
   if(($arg eq '--help') || ($arg eq '-h'))
   {
-    die "Usage: psample [--help|-h] [--sample=<seconds>] [--showthreads] [<output>]\n";
+    die "Usage: psample [--help|-h] [--sample=<seconds>] [--showthreads] [--pid=<Process ID from R::Sys.getpid()>] [<output>]\n";
   }
   if($arg =~ /--sample=(\d+)/)
   {
@@ -57,6 +60,10 @@ foreach my $arg (@ARGV)
   elsif($arg eq '--showthreads')
   {
     $showthreads = 1;
+  }
+  elsif($arg =~ /--pid=(\d+)/)
+  {
+    $Rpid = $1;
   }
   else
   {
@@ -67,7 +74,10 @@ foreach my $arg (@ARGV)
 my $hostname = `hostname`;
 chomp $hostname;
 
-my $parent_process_id = getppid();
+#getppid();
+# $PID;
+my $parent_process_id = $Rpid;
+print $parent_process_id;
 $output = "$hostname-sample.$parent_process_id.csv"
   if not $output;
 
