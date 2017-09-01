@@ -25,7 +25,8 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   num_covariates        <- as.numeric(commandArgs()[8])
   intercept_coef        <- as.numeric(commandArgs()[9])
   rho                   <- as.numeric(commandArgs()[10])
-  cores                  <- as.numeric(commandArgs()[11])
+  cores                 <- as.numeric(commandArgs()[11])
+  n_periods             <- as.numeric(commandArgs()[12])
 } else { # if testing interactively
   iii                   <- 1
   n_clusters            <- 10000
@@ -37,6 +38,7 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   rho                   <- .9
   num_covariates        <- 3
   cores                 <- 10
+  n_periods             <- 4
   system(paste0('cd ',dir,'\ngit pull origin develop'))
 }
 for(l in ls())
@@ -55,7 +57,7 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
                   rho        = rho             ,  ##  AR1 term
                   l          = 100             ,  ##  Matrix Length
                   n_clusters = n_clusters           ,  ##  number of clusters sampled ]
-                  n_periods  = 4               ,  ##  number of periods (1 = no spacetime)
+                  n_periods  = n_periods               ,  ##  number of periods (1 = no spacetime)
                   mean.exposure.months = mean.exposure.months ,  ##  mean exposure months per cluster
                   extent = c(0,1,0,1)          ,  ##  xmin,xmax,ymin,ymax
                   ncovariates = num_covariates   ,  ##  how many covariates to include?
