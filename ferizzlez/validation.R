@@ -85,6 +85,7 @@ stop_psample()
 ######
 ## validate
 v <- rbind(validate(tmb),validate(inla))
+v$cores <- cores
 
 ######
 ## write output
