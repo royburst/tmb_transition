@@ -369,8 +369,8 @@ getsimdata <- function(simobj,               # simobj is a list returned from mo
 
 ######
 ## Fit and Predict from TMB
-fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
-                            cores = 1, # need to debug parallel
+fit_n_pred_TMB <- function( templ = "model", # string name of template
+                            cores = 1,
                             ndraws = 50,
                             fixsigma = FALSE, # posdef thing, will change cov
                             bias.correct= TRUE,
@@ -381,8 +381,10 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
   ## Compile
   message('compiling')
 #  templ <- "basic_spde" # _aoz" #spde2
+  openmp(cores)
   TMB::compile(paste0(templ,".cpp"))
   dyn.load( dynlib(templ) )
+  config(tape.parallel=0, DLL=templ)
 
   # unload objects from the list to be easier to work with
   for(n in names(simdata))
@@ -536,7 +538,7 @@ fit_n_pred_TMB <- function( templ = "basic_spde", # string name of template
 #######################
 ### INLA
 ## Fit and Predict from TMB
-fit_n_pred_INLA <- function( cores = 1,
+fit_n_pred_INLA <- function(cores = 1,
                             ndraws = 50,
                             simdata,
                             so=simobj){ # returned from getsimdata
@@ -581,7 +583,7 @@ fit_n_pred_INLA <- function( cores = 1,
                   control.inla = list(int.strategy = 'eb', h = 1e-3, tolerance = 1e-6),
                   control.compute=list(config = TRUE),
                   family = 'binomial',
-                  num.threads = 1,
+                  num.threads = cores,
                   Ntrials = dt$exposures,
                   verbose = TRUE,
                   keep = TRUE)

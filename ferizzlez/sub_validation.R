@@ -21,10 +21,21 @@ dir.create(sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s',run_date
 
 message(run_date)
 
+# n=1
+# for(n_clusters in c(50,100,200,1000,2500,5000, 10000,20000,30000,40000,50000,60000,70000,80000,100000)){
+#   for(i in 1:5){
+#     qsub <- sprintf("qsub -e /share/temp/sgeoutput/royburst/errors -o /share/temp/sgeoutput/royburst/output -cwd -P proj_geo_nodes -l gn=TRUE -l mem_free=8G -N job_%i r_shell.sh validation.R %i %i %i %i %s %i %g %g",n,n,n_clusters,mean.exposure.months,meshatdatalocs,run_date,num_covariates,intercept_coef,rho)
+#     system(qsub)
+#     n=n+1
+#   }
+# }
+
+n_clusters=10000
+
 n=1
-for(n_clusters in c(50,100,200,1000,2500,5000, 10000,20000,30000,40000,50000,60000,70000,80000,100000)){
+for(cores in 1:20){
   for(i in 1:5){
-    qsub <- sprintf("qsub -e /share/temp/sgeoutput/royburst/errors -o /share/temp/sgeoutput/royburst/output -cwd -P proj_geo_nodes -l gn=TRUE -l mem_free=8G -N job_%i r_shell.sh validation.R %i %i %i %i %s %i %g %g",n,n,n_clusters,mean.exposure.months,meshatdatalocs,run_date,num_covariates,intercept_coef,rho)
+    qsub <- sprintf("qsub -e /share/temp/sgeoutput/royburst/errors -o /share/temp/sgeoutput/royburst/output -cwd -P proj_geo_nodes -l gn=TRUE -l mem_free=8G -pe multi_slot %i -N job_%i r_shell.sh validation.R %i %i %i %i %s %i %g %g %i",cores,n,n,n_clusters,mean.exposure.months,meshatdatalocs,run_date,num_covariates,intercept_coef,rho,cores)
     system(qsub)
     n=n+1
   }

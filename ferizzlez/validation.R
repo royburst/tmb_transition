@@ -25,6 +25,7 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   num_covariates        <- as.numeric(commandArgs()[8])
   intercept_coef        <- as.numeric(commandArgs()[9])
   rho                   <- as.numeric(commandArgs()[10])
+  cores                  <- as.numeric(commandArgs()[11])
 } else { # if testing interactively
   iii                   <- 1
   n_clusters            <- 10000
@@ -35,6 +36,7 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   intercept_coef        <- -5
   rho                   <- .9
   num_covariates        <- 3
+  cores                 <- 10
   system(paste0('cd ',dir,'\ngit pull origin develop'))
 }
 for(l in ls())
@@ -71,13 +73,13 @@ simdat <- getsimdata(simobj,meshatdatalocs=meshatdatalocs,options=1)
 #####
 ## TMB
 start_psample(psf = paste0("psample_tmb_", iii, ".csv"))
-tmb <- fit_n_pred_TMB(simdata = simdat, templ = 'model', fixsigma = FALSE, ndraws = 1000)
+tmb <- fit_n_pred_TMB(simdata = simdat, templ = 'model', fixsigma = FALSE, ndraws = 1000, cores = cores)
 stop_psample()
 
 #####
 ## INLA
 start_psample(psf = paste0("psample_inla_", iii, ".csv"))
-inla <- fit_n_pred_INLA(simdata = simdat, ndraws = 1000)
+inla <- fit_n_pred_INLA(simdata = simdat, ndraws = 1000, cores = cores)
 stop_psample()
 
 ######
