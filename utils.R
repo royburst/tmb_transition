@@ -408,6 +408,7 @@ fit_n_pred_TMB <- function( templ = "model", # string name of template
   # make object
   ptm <- proc.time()[3]
   obj <- MakeADFun(data=tmbdata, parameters=tmbpars, map=mapout, random="Epsilon_stz", hessian=TRUE, DLL=templ)
+  runSymbolicAnalysis(obj)
 
   ## Run optimizer
   opt0 <- do.call("nlminb",list(start       =    obj$par,
