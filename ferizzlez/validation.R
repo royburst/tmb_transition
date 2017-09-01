@@ -4,7 +4,7 @@ options(scipen=999)
 .libPaths('/home/j/temp/geospatial/geos_packages')
 
 library(INLA)
-library(TMB)
+require('TMB', lib.loc='/snfs2/HOME/azimmer/R/x86_64-pc-linux-gnu-library/3.3/') # COMPILED WITH METIS
 library(data.table)
 library(RandomFields)
 library(raster)
@@ -27,6 +27,7 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   rho                   <- as.numeric(commandArgs()[10])
   cores                 <- as.numeric(commandArgs()[11])
   n_periods             <- as.numeric(commandArgs()[12])
+  maxedge               <- as.numeric(commandArgs()[13])
 } else { # if testing interactively
   iii                   <- 1
   n_clusters            <- 10000
@@ -39,6 +40,7 @@ if( !is.na(commandArgs()[3]) ) { # if qsubbed
   num_covariates        <- 3
   cores                 <- 10
   n_periods             <- 4
+  maxedge               <- 0.2
   system(paste0('cd ',dir,'\ngit pull origin develop'))
 }
 for(l in ls())
@@ -70,7 +72,7 @@ simobj <- mortsim(nu         = 2               ,  ##  Matern smoothness paramete
 ######
 ## pull out some useful data
 if(grepl('geos',Sys.info()['nodename']))  INLA:::inla.dynload.workaround()
-simdat <- getsimdata(simobj,meshatdatalocs=meshatdatalocs,options=1)
+simdat <- getsimdata(simobj, meshatdatalocs=meshatdatalocs, maxedge=maxedge, options=1)
 
 #####
 ## TMB

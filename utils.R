@@ -285,6 +285,7 @@ rasterFromXYZT <- function(table,
 ## Take a simobj and return useful data inputs for modelling
 getsimdata <- function(simobj,               # simobj is a list returned from mortsim
                        meshatdatalocs=FALSE, # make the mesh at data locations?
+                       maxedge=0.2,
                        options=1){
 
   ## get samples from which to fit
@@ -304,7 +305,7 @@ getsimdata <- function(simobj,               # simobj is a list returned from mo
   } else {
        mesh_s <- inla.mesh.2d(,
                              data.boundary,
-                             max.edge=c(0.2,0.2),
+                             max.edge=c(maxedge,.2),
                              cutoff=0.05)
    }
   nodes <- mesh_s$n ## get number of mesh nodes
@@ -586,7 +587,7 @@ fit_n_pred_INLA <- function(cores = 1,
                   num.threads = cores,
                   Ntrials = dt$exposures,
                   verbose = TRUE,
-                  keep = TRUE)
+                  keep = FALSE)
   inla_fit_time <- proc.time()[3] - ptm
 
   ptm <- proc.time()[3]
@@ -656,6 +657,7 @@ fit_n_pred_INLA <- function(cores = 1,
 validate <- function(fit,       # fit object from tmb or inla
                      so=simobj,    # the sim object
                      trho_true=rho,
+                     sdat = simdat,
                      intercept_coef_true=intercept_coef){
 
   ## summarize predictions and truth and errors
@@ -687,7 +689,7 @@ validate <- function(fit,       # fit object from tmb or inla
   vv_mean_ss            <- round(mean(so$d$exposures),0)
   vv_num_covariates     <- length(grep('X',names(so$d)))
   vv_average_true_p     <- mean(truth)
-  vv_mesh_points        <- so$mesh_s$n
+  vv_mesh_points        <- sdat$mesh_s$n
 
   # parameters # vars are from env (should change this.. )
   vv_intercept_coef       <- intercept_coef_true
