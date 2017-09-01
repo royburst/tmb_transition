@@ -685,6 +685,7 @@ validate <- function(fit,       # fit object from tmb or inla
   vv_mean_ss            <- round(mean(so$d$exposures),0)
   vv_num_covariates     <- length(grep('X',names(so$d)))
   vv_average_true_p     <- mean(truth)
+  vv_mesh_points        <- so$mesh_s$n
 
   # parameters # vars are from env (should change this.. )
   vv_intercept_coef       <- intercept_coef_true
@@ -833,14 +834,17 @@ plotbenchmarks <- function( x=NULL, #x and y are the variables for axes
   message(sprintf('compiling validation runs from  /home/j/temp/geospatial/tmb_testing/cluster_out/%s/',rd))
   d<-data.table()
   for(f in list.files(path = sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/',rd)))
-    if(length(grep('.csv',f))>0)
+    if(grepl('validation_compare',f)){
       d <- rbind(d,fread(sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s',rd,f)))
+      message(f)
+    }
   dd<-copy(d)
 
   if(!justreturncompileddata){
     #summarize
     d[,mean_ss:=round(mean_ss,-2)]
     d[,total_time:=seconds_to_predict+seconds_to_fit]
+    d_orig <- copy(d)
     d<-d[,.(yp=mean(get(y)),number_of_simulations=sum(.N)),by=.(software,get(x))]
 
     filepath=sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s__%s_plot.pdf',rd,x,y)
@@ -848,6 +852,7 @@ plotbenchmarks <- function( x=NULL, #x and y are the variables for axes
     message(sprintf('SAVING PLOT AT /home/j/temp/geospatial/tmb_testing/cluster_out/%s/%s$s_plot.pdf',rd,x,y))
     pdf(filepath,height=8,width=8)
     g<-ggplot(d,aes(x=get,y=yp,col=software))+
+      geom_point(data=d_orig,aes(x=get(x),y=get(y)))+
       geom_line(size=1)+geom_point(aes(size=number_of_simulations))+
       ylab(y)+xlab(x)+
       theme_bw()

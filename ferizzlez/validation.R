@@ -86,6 +86,6 @@ v <- rbind(validate(tmb),validate(inla))
 
 ######
 ## write output
-fwrite(v,sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/validatoin_compare_%i.csv',run_date,iii))
+fwrite(v,sprintf('/home/j/temp/geospatial/tmb_testing/cluster_out/%s/validation_compare_%i.csv',run_date,iii))
 
 #comparison_plots()
