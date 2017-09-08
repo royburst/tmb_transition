@@ -30,13 +30,13 @@ message(run_date)
 #   }
 # }
 
-n_clusters=10000
+n_clusters=25000
 n_periods = 10
-maxedge = 0.2
+maxedge = 0.01
 n=1
-for(cores in 1:30){
-  for(i in 1:7){
-    qsub <- sprintf("qsub -e /share/temp/sgeoutput/royburst/errors -o /share/temp/sgeoutput/royburst/output -cwd -P proj_geo_nodes -l gn=TRUE -l mem_free=8G -pe multi_slot %i -N job_%i r_shell.sh validation.R %i %i %i %i %s %i %g %g %i %i %i",cores,n,n,n_clusters,mean.exposure.months,meshatdatalocs,run_date,num_covariates,intercept_coef,rho,cores,n_periods,maxedge)
+for(cores in c(1,2,3,4,5,7,10,15,20)){
+  for(i in 1:5){
+    qsub <- sprintf("qsub -e /share/temp/sgeoutput/royburst/errors -o /share/temp/sgeoutput/royburst/output -cwd -P proj_geo_nodes -l gn=TRUE -l mem_free=8G -pe multi_slot %i -N job_%i r_shell.sh validation.R %i %i %i %i %s %i %g %g %i %i %f",cores,n,n,n_clusters,mean.exposure.months,meshatdatalocs,run_date,num_covariates,intercept_coef,rho,cores,n_periods,maxedge)
     system(qsub)
     n=n+1
   }
@@ -46,9 +46,30 @@ for(cores in 1:30){
 
 
 
+n_clusters=20000
+n_periods = 10
+cores = 5
+n=1
+for(maxedge in c(0.001)){
+  for(i in 1:5){
+    qsub <- sprintf("qsub -e /share/temp/sgeoutput/royburst/errors -o /share/temp/sgeoutput/royburst/output -cwd -P proj_geo_nodes -l gn=TRUE -l mem_free=8G -pe multi_slot %i -N job_%i r_shell.sh validation.R %i %i %i %i %s %i %g %g %i %i %f",cores,n,n,n_clusters,mean.exposure.months,meshatdatalocs,run_date,num_covariates,intercept_coef,rho,cores,n_periods,maxedge) # full node jobs
+    system(qsub)
+    n=n+1
+  }
+}
+
+
+
+
+
+
 plotbenchmarks(rd=run_date,x="cores",y="total_time" )
 plotbenchmarks(rd=run_date,x="cores",y="root_mean_squared_error" )
 plotbenchmarks(rd=run_date,x="cores",y="seconds_to_fit" )
+
+plotbenchmarks(rd=run_date,x="mesh_points",y="total_time" )
+plotbenchmarks(rd=run_date,x="mesh_points",y="seconds_to_fit" )
+plotbenchmarks(rd=run_date,x="mesh_points",y="root_mean_squared_error" )
 
 
 #############################
