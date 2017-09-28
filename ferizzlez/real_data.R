@@ -19,7 +19,10 @@ system(paste0('cd ',dir,'\ngit pull origin develop'))
 
 # MBG FUNCTIONS
 setwd('/share/code/geospatial/royburst/mbg/')
-for(funk in list.files(recursive=TRUE,pattern='functions')) try(source(funk))
+for(funk in list.files(recursive=TRUE,pattern='functions')) {
+  message(funk)
+  try(source(funk))
+}
 
 # TMB FUNCTIONS
 setwd(paste0(dir,"/ferizzlez"))
@@ -193,7 +196,7 @@ if(!is.positive.definite(sigma)){
 
 ## now we can take draws
 message('Predicting Draws')
-draws  <- t(mvrnorm(n=100,mu=mu,Sigma=sigma))
+draws  <- t(mvrnorm(n=ndraws,mu=mu,Sigma=sigma))
   ## ^ look for a quicker way to do this..cholesky
 
 ## separate out the draws
