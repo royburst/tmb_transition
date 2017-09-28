@@ -7,6 +7,7 @@ options(scipen=999)
 .libPaths('/home/j/temp/geospatial/geos_packages')
 
 library(INLA)
+if(grepl("geos", Sys.info()[4])) INLA:::inla.dynload.workaround()
 require('TMB', lib.loc='/snfs2/HOME/azimmer/R/x86_64-pc-linux-gnu-library/3.3/') # COMPILED WITH METIS
 library(data.table)
 library(RandomFields)
@@ -129,11 +130,9 @@ tmb_fit_time <- proc.time()[3] - ptm
 
 #########################################
 
-
-
 #########################################
 #########################################
-##### Make predictions
+##### Make predictions with TMB
 
 # Get standard errors
 ## Report0 = obj$report()
@@ -263,7 +262,205 @@ ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,1]), t=rep(1:nperiods,
 pdf('test3.pdf')
 plot(ras)
 dev.off()
+
 #########################################
 
 
-## Compare with INLA Predictions we have for this area as well
+#########################################
+#########################################
+#### fit using INLA
+A <- inla.spde.make.A(
+  mesh = mesh_s,
+  loc = coords,
+  group = df$period_id
+)
+nperiod <- length(unique(df$period_id))
+space   <- inla.spde.make.index("space",
+                                n.spde = spde$n.spde,
+                                n.group = nperiod)
+
+inla.covs <- c(modnames, 'rates') ## add in malaria rates
+design_matrix <- data.frame(int = 1, df[, inla.covs, with=F])
+stack.obs <- inla.stack(tag='est',
+                        data=list(died=df$died), ## response
+                        A=list(A,1), ## proj matrix, not sure what the 1 is for
+                        effects=list(
+                          space,
+                          design_matrix)
+                        )
+
+formula <- formula(paste0('died ~ -1+int+',
+(paste(inla.covs, collapse = ' + ')),
+' + f(space, model = spde, group = space.group, control.group = list(model = \'ar1\'))'))
+
+ptm <- proc.time()[3]
+
+inla.setOption("enable.inla.argument.weights", TRUE)
+res_fit <- inla(formula,
+                data = inla.stack.data(stack.obs),
+                control.predictor = list(A = inla.stack.A(stack.obs),
+                                         link = 1,
+                                         compute = FALSE),
+                control.fixed = list(expand.factor.strategy = 'inla'),
+                control.inla = list(int.strategy = 'eb', h = 1e-3, tolerance = 1e-6),
+                control.compute=list(config = TRUE),
+                family = 'binomial',
+                num.threads = 10,
+                Ntrials = df$N,
+                weights = df$weight, 
+                verbose = TRUE,
+                keep = TRUE)
+inla_fit_time <- proc.time()[3] - ptm
+
+
+#########################################
+#########################################
+#### predict with INLA
+ptm <- proc.time()[3]
+draws <- inla.posterior.sample(ndraws, res_fit)
+
+## get parameter names
+par_names <- rownames(draws[[1]]$latent)
+
+## index to spatial field and linear coefficient samples
+s_idx <- grep('^space.*', par_names)
+l_idx <- which(!c(1:length(par_names)) %in% grep('^space.*|Predictor', par_names))
+
+## get samples as matrices
+pred_s <- sapply(draws, function (x) x$latent[s_idx])
+pred_l <- sapply(draws, function (x) x$latent[l_idx])
+rownames(pred_l) <- res_fit$names.fixed
+
+## replicate coordinates and years (from above in tmb predict)
+pcoords <- cbind(x=fullsamplespace$x, y=fullsamplespace$y)
+groups_periods <- fullsamplespace$t
+
+## use inla helper functions to project the spatial effect.
+A.pred <- inla.spde.make.A(mesh = mesh_s,
+                           loc = pcoords,
+                           group = groups_periods)
+
+## get samples of s for all coo locations
+s <- A.pred %*% pred_s
+s <- as.matrix(s)
+
+
+## predict out linear effects
+## extract cell values  from covariates, deal with timevarying covariates here
+vals <- list()
+for(p in 1:nperiod){
+  tmp.mat <- matrix(ncol = nlayers(new_cl[[p]]), nrow = (nrow(fullsamplespace)/nperiods))
+  for(ii in 1:nlayers(new_cl[[p]])){
+    tmp.mat[, ii] <- raster::extract(new_cl[[p]], pcoords[1:(nrow(fullsamplespace)/nperiods),], layer = ii, nl = 1) ## TODO this returns NAs since we have a raster brick
+  }
+  vals[[p]] <- (cbind(int = 1, tmp.mat))
+  vals[[p]] <- vals[[p]] %*% pred_l # same as getting cell_ll for each time period
+}
+l <- do.call(rbind,vals)
+
+
+#vals=as.matrix(cbind(int=1,sspc[,simobj$fe.name,with=F]))
+#l <- vals %*% pred_l
+
+pred_inla <- s+l
+
+## make them into time bins
+len = nrow(pred_inla)/nperiod
+inla_totalpredict_time <- proc.time()[3] - ptm
+
+###########################################################
+
+
+###########################################################
+###########################################################
+## TODO this is just copied from tmb_testing at the moment
+### Summarize draws and compare
+## make summary plots - median, 2.5% and 97.5%
+summ_inla <- cbind(median=(apply(pred_inla,1,median)),sd=(apply(pred_inla,1,sd)))
+## make summary plots - median, 2.5% and 97.5%
+summ_tmb <- cbind(median=(apply(pred_tmp,1,median)),sd=(apply(pred_tmp,1,sd)))
+
+## get error and SD
+truth <- qlogis(as.vector(simobj$r.true.mr))
+
+
+e_tmb  <- summ_tmb[,1]-truth
+e_inla <- summ_inla[,1]-truth
+
+m_diff  <- summ_tmb[,1] - summ_inla[,1]
+sd_diff <- summ_tmb[,2] - summ_inla[,2]
+
+m_tmb_r   <- rasterFromXYZT(data.table(pcoords,p=summ_tmb[,1], t=rep(1:nperiod,each=len)),"p","t")
+m_inla_r  <- rasterFromXYZT(data.table(pcoords,p=summ_inla[,1],t=rep(1:nperiod,each=len)),"p","t")
+e_tmb_r   <- rasterFromXYZT(data.table(pcoords,p=e_tmb, t=rep(1:nperiod,each=len)),"p","t")
+e_inla_r  <- rasterFromXYZT(data.table(pcoords,p=e_inla,t=rep(1:nperiod,each=len)),"p","t")
+sd_tmb_r  <- rasterFromXYZT(data.table(pcoords,p=summ_tmb[,2], t=rep(1:nperiod,each=len)),"p","t")
+sd_inla_r <- rasterFromXYZT(data.table(pcoords,p=summ_inla[,2],t=rep(1:nperiod,each=len)),"p","t")
+m_diff_r  <- rasterFromXYZT(data.table(pcoords,p=m_diff,t=rep(1:nperiod,each=len)),"p","t")
+sd_diff_r <- rasterFromXYZT(data.table(pcoords,p=sd_diff,t=rep(1:nperiod,each=len)),"p","t")
+
+emn <- min(c(e_inla,e_tmb))
+emx <- max(c(e_inla,e_tmb))
+smn <- min(c(summ_inla[,2],summ_tmb[,2]))
+smx <- max(c(summ_inla[,2],summ_tmb[,2]))
+mmn <- min(c(summ_inla[,1],summ_tmb[,1],truth))
+mmx <- max(c(summ_inla[,1],summ_tmb[,1],truth))
+
+
+## plot
+print('making plots')
+require(grDevices)
+##pdf(sprintf('mean_error_tmb_inla_%i_clusts_%iexpMths_wo_priors.pdf', n.clust, n.expMths), height=20,width=16)
+pdf("plot.pdf", height=20,width=16)
+
+par(mfrow=c(4,3),
+    mar = c(3, 3, 3, 9))
+
+truthr<- simobj$r.true.mr
+values(truthr) <- truth
+
+## 1
+plot(truthr[[1]],main='TRUTH',zlim=c(mmn,mmx))
+points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
+
+## 2
+plot(as.vector(sd_tmb_r[[1]]),as.vector(sd_inla_r[[1]]), col = rainbow(11)[cut(pcoords[, 1], breaks = 10)], main = "Color by X")
+legend("bottomright", legend = unique(cut(pcoords[, 1], breaks = 10)), col = rainbow(11), pch = 16)
+abline(a = 0, b = 1)
+## 3
+plot(as.vector(sd_tmb_r[[1]]),as.vector(sd_inla_r[[1]]), col = rainbow(11)[cut(pcoords[, 2], breaks = 10)], main = "Color by Y")
+legend("bottomright", legend = unique(cut(pcoords[, 2], breaks = 10)), col = rainbow(11), pch = 16)
+abline(a = 0, b = 1)
+## 4
+plot(m_tmb_r[[1]],main='MEDIAN TMB',zlim=c(mmn,mmx))
+## 5
+plot(m_inla_r[[1]],main='MEDIAN INLA',zlim=c(mmn,mmx))
+## 6
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(m_diff_r)), 0, length = 15), 0, seq(0, max(values(m_diff_r)),length = 15))[-c(15, 16)]
+plot(m_diff_r[[1]],main='MEDIAN DIFFERENCE', col = cls, breaks = brks)
+## 7
+error.values <- range(c(values(e_tmb_r), values(e_inla_r)))
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(error.values), 0, length = 15), 0, seq(0, max(error.values),length = 15))[-c(15, 16)]
+plot(e_tmb_r[[1]],main='TMB ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
+## 8
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(error.values), 0, length = 15), 0, seq(0, max(error.values),length = 15))[-c(15, 16)]
+plot(e_inla_r[[1]],main='INLA ERROR',zlim=c(emn,emx), col = cls, breaks = brks)
+## 9
+plot(x = e_inla_r[[1]], y = e_tmb_r[[1]], xlab = "inla error", ylab="tmb error");abline(a = 0, b= 1)
+## 10
+plot(sd_tmb_r[[1]],main='TMB SD',zlim=c(smn,smx))
+points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
+## 11
+plot(sd_inla_r[[1]],main='INLA SD',zlim=c(smn,smx))
+points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
+## 12
+cls <- c(colorRampPalette(c("blue", "white"))(15), colorRampPalette(c("white", "red"))(15))[-15]
+brks <- c(seq(min(values(sd_diff_r)), 0, length = 15), 0, seq(0, max(values(sd_diff_r)),length = 15))[-c(15, 16)]
+plot(sd_diff_r[[1]], main='SD DIFFERENCE', col = cls, breaks = brks)
+points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
+
+dev.off()
+
