@@ -5,6 +5,8 @@ rm(list=ls())
 gc()
 options(scipen=999)
 .libPaths('/home/j/temp/geospatial/geos_packages')
+##.libPaths('/home/j/temp/geospatial/packages')
+
 
 library(INLA)
 if(grepl("geos", Sys.info()[4])) INLA:::inla.dynload.workaround()
@@ -248,18 +250,25 @@ for(p in 1:nperiods){
 cell_l <- do.call(rbind,vals)
 
 ## add together linear and st components
-pred <- cell_l + cell_s
+pred_tmb <- cell_l + cell_s
 
 # save prediction timing
 totalpredict_time <- proc.time()[3] - ptm
 
-# plot it
-summ  <- cbind(median=(apply(pred,1,median))) #,sd=(apply(pred,1,sd)))
+## ##########
+## plot it ##
+## ##########
+summ  <- cbind(median=(apply(pred_tmb,1,median)),sd=(apply(pred_tmb,1,sd)))
 
 # make a median raster
 ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,1]), t=rep(1:nperiods,each=nrow(pred)/nperiods)),"p","t")
+pdf('test_real_data_tmb_median.pdf')
+plot(ras)
+dev.off()
 
-pdf('test3.pdf')
+# make a sd raster
+ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,2]), t=rep(1:nperiods,each=nrow(pred)/nperiods)),"p","t")
+pdf('test_real_data_tmb_sd.pdf')
 plot(ras)
 dev.off()
 
@@ -345,28 +354,40 @@ s <- A.pred %*% pred_s
 s <- as.matrix(s)
 
 
-## predict out linear effects
 ## extract cell values  from covariates, deal with timevarying covariates here
 vals <- list()
-for(p in 1:nperiod){
-  tmp.mat <- matrix(ncol = nlayers(new_cl[[p]]), nrow = (nrow(fullsamplespace)/nperiods))
-  for(ii in 1:nlayers(new_cl[[p]])){
-    tmp.mat[, ii] <- raster::extract(new_cl[[p]], pcoords[1:(nrow(fullsamplespace)/nperiods),], layer = ii, nl = 1) ## TODO this returns NAs since we have a raster brick
-  }
-  vals[[p]] <- (cbind(int = 1, tmp.mat))
-  vals[[p]] <- vals[[p]] %*% pred_l # same as getting cell_ll for each time period
+for(p in 1:nperiods){
+  message(p)
+  vals[[p]] <- raster::extract(new_cl[[p]], pcoords[1:(nrow(fullsamplespace)/nperiods),])
+  vals[[p]] <- (cbind(int = 1, vals[[p]]))
+  vals[[p]] <- vals[[p]] %*% pred_l# same as getting cell_ll for each time period
 }
+
 l <- do.call(rbind,vals)
-
-
-#vals=as.matrix(cbind(int=1,sspc[,simobj$fe.name,with=F]))
-#l <- vals %*% pred_l
 
 pred_inla <- s+l
 
 ## make them into time bins
 len = nrow(pred_inla)/nperiod
 inla_totalpredict_time <- proc.time()[3] - ptm
+
+
+## ##########
+## plot it ##
+## ##########
+summ  <- cbind(median=(apply(pred_inla,1,median)),sd=(apply(pred_inla,1,sd)))
+
+# make a median raster
+ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,1]), t=rep(1:nperiods,each=nrow(pred)/nperiods)),"p","t")
+pdf('test_real_data_inla_median.pdf')
+plot(ras)
+dev.off()
+
+# make a median raster
+ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,2]), t=rep(1:nperiods,each=nrow(pred)/nperiods)),"p","t")
+pdf('test_real_data_inla_sd.pdf')
+plot(ras)
+dev.off()
 
 ###########################################################
 
@@ -378,7 +399,7 @@ inla_totalpredict_time <- proc.time()[3] - ptm
 ## make summary plots - median, 2.5% and 97.5%
 summ_inla <- cbind(median=(apply(pred_inla,1,median)),sd=(apply(pred_inla,1,sd)))
 ## make summary plots - median, 2.5% and 97.5%
-summ_tmb <- cbind(median=(apply(pred_tmp,1,median)),sd=(apply(pred_tmp,1,sd)))
+summ_tmb <- cbind(median=(apply(pred_tmb,1,median)),sd=(apply(pred_tmb,1,sd)))
 
 ## get error and SD
 truth <- qlogis(as.vector(simobj$r.true.mr))
