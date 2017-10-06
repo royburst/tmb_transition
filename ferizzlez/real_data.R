@@ -1,5 +1,9 @@
 #### Try to run TMB on real u5m data (one age bin region)
 
+# NOTES: MKL: export OMP_NUM_THREADS = 10; /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R
+#
+
+
 ############### SETUP
 rm(list=ls())
 gc()
@@ -67,7 +71,7 @@ if(!use_orig_mesh){
   simple_polygon   <- simple_polygon_list[[2]]
   mesh_s <- build_space_mesh(d = df,
                              simple = simple_polygon,
-                             max_edge = 1,
+                             max_edge = 3,
                              mesh_offset = 2)
 }
 
@@ -261,15 +265,15 @@ totalpredict_time <- proc.time()[3] - ptm
 summ  <- cbind(median=(apply(pred_tmb,1,median)),sd=(apply(pred_tmb,1,sd)))
 
 # make a median raster
-ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,1]), t=rep(1:nperiods,each=nrow(pred)/nperiods)),"p","t")
+ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,1]), t=rep(1:nperiods,each=nrow(pred_tmb)/nperiods)),"p","t")
 pdf('test_real_data_tmb_median.pdf')
-plot(ras)
+plot(ras,maxpixel=1e7)
 dev.off()
 
 # make a sd raster
-ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,2]), t=rep(1:nperiods,each=nrow(pred)/nperiods)),"p","t")
+ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,2]), t=rep(1:nperiods,each=nrow(pred_tmb)/nperiods)),"p","t")
 pdf('test_real_data_tmb_sd.pdf')
-plot(ras)
+plot(ras,maxpixel=1e5)
 dev.off()
 
 #########################################
@@ -316,7 +320,7 @@ res_fit <- inla(formula,
                 family = 'binomial',
                 num.threads = 10,
                 Ntrials = df$N,
-                weights = df$weight, 
+                weights = df$weight,
                 verbose = TRUE,
                 keep = TRUE)
 inla_fit_time <- proc.time()[3] - ptm
@@ -484,4 +488,3 @@ plot(sd_diff_r[[1]], main='SD DIFFERENCE', col = cls, breaks = brks)
 points(simobj$d$x[simobj$d$period==1],simobj$d$y[simobj$d$period==1])
 
 dev.off()
-
