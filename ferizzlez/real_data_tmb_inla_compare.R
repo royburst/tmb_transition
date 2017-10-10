@@ -18,6 +18,7 @@ require('TMB', lib.loc='/snfs2/HOME/azimmer/R/x86_64-pc-linux-gnu-library/3.3/')
 library(data.table)
 library(RandomFields)
 library(raster)
+library(viridis)
 
 ## need to set to same directory as the template file, also pull from git
 ## Clone the git directory to your H drive and this should work for anyone
@@ -36,7 +37,7 @@ setwd(paste0(dir,"/ferizzlez"))
 source('../utils.R')
 
 # draws for prediction
-ndraws <- 10
+ndraws <- 250
 
 # make a chunky mesh or use the original?
 use_orig_mesh <- FALSE # TRUE
@@ -259,24 +260,6 @@ pred_tmb <- cell_l + cell_s
 # save prediction timing
 totalpredict_time_tmb <- proc.time()[3] - ptm
 
-## ##########
-## plot it ##
-## ##########
-summ  <- cbind(median=(apply(pred_tmb,1,median)),sd=(apply(pred_tmb,1,sd)))
-
-# make a median raster
-ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,1]), t=rep(1:nperiods,each=nrow(pred)/nperiods)),"p","t")
-pdf('test_real_data_tmb_median.pdf')
-plot(ras)
-dev.off()
-
-# make a sd raster
-ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,2]), t=rep(1:nperiods,each=nrow(pred)/nperiods)),"p","t")
-pdf('test_real_data_tmb_sd.pdf')
-plot(ras)
-dev.off()
-
-#########################################
 
 
 #########################################
@@ -376,26 +359,9 @@ len = nrow(pred_inla)/nperiod
 totalpredict_time_inla <- proc.time()[3] - ptm
 
 
-## ##########
-## plot it ##
-## ##########
-summ  <- cbind(median=(apply(pred_inla,1,median)),sd=(apply(pred_inla,1,sd)))
-
-# make a median raster
-ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,1]), t=rep(1:nperiods,each=nrow(pred_inla)/nperiods)),"p","t")
-pdf('test_real_data_inla_median.pdf')
-plot(ras)
-dev.off()
-
-# make a median raster
-ras   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ[,2]), t=rep(1:nperiods,each=nrow(pred_inla)/nperiods)),"p","t")
-pdf('test_real_data_inla_sd.pdf')
-plot(ras)
-dev.off()
 
 
-
-
+###########################################################
 ###########################################################
 ## MAKE COMPARISONS
 
@@ -408,17 +374,12 @@ ras_med_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,1]), t=rep
 ras_sdv_inla  <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_inla[,2]), t=rep(1:nperiods,each=nrow(pred_inla)/nperiods)),"p","t")
 ras_sdv_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,2]), t=rep(1:nperiods,each=nrow(pred_tmb)/nperiods)),"p","t")
 
+####
+#### MAKE PLOTS
 
 
-
-
-
-#############
-### MAKE PLOTS
-library(viridis)
-
+pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test.pdf'), height=10,width=14)
 for(thing in c('median','stdev')){
-  pdf(paste0('test_',thing,'.pdf'), height=10,width=14)
     layout(matrix(1:20, 4, 5, byrow = TRUE))
     samp=sample(cellIdx(ras_med_inla[[1]]),1e4)
     for(i in 1:4){
@@ -460,12 +421,69 @@ for(thing in c('median','stdev')){
       #  plot(x=tmp$dat,y=tmp$resid_inla, pch=19,col='red',cex=.1,main='RESIDUALS')
       #  points(x=tmp$dat,y=tmp$resid_tmb, pch=19,col='blue',cex=.1)
     }
-  dev.off()
 }
 
-##################
-# MAKE TABLE
+
+####
+#### Compare mean and distribution of random effects
+summ_gp_tmb  <- t(cbind((apply(epsilon_draws,1,quantile,probs=c(.1,.5,.9)))))
+summ_gp_inla <- t(cbind((apply(pred_s,1,quantile,probs=c(.1,.5,.9)))))
+  # all time-space random effects
+
+plot_d <- data.table(tmb_median = summ_gp_tmb[,2],inla_median = summ_gp_inla[,2],
+                     tmb_low    = summ_gp_tmb[,1],inla_low    = summ_gp_inla[,1],
+                     tmb_up     = summ_gp_tmb[,3],inla_up     = summ_gp_inla[,3])
+
+plot_d$period <- factor(rep(1:4,each=nrow(plot_d)/4))
+plot_d$loc    <- rep(1:(nrow(plot_d)/4),rep=4)
+
+ggplot(plot_d, aes(x=tmb_median,y=inla_median,col=period)) + theme_bw() +
+  geom_point() + geom_line(aes(group=loc)) + geom_abline(intercept=0,slope=1,col='red')
+
+# plot locations where they are different, are they near or far from data?
+plot_d[, absdiff := abs(tmb_median-inla_median)]
+nodelocs <- do.call("rbind", replicate(4, mesh_s$loc, simplify = FALSE))
+biggdiff <- unique(nodelocs[which(plot_d$absdiff>quantile(plot_d$absdiff,prob=0.80)),])
+
+plot(simple_polygon, main='LOCATIONS OF RE WITH BIGG DIFFERENCES')
+points(x=tmp$longitude,y=tmp$latitude, pch=19, cex=0.1)
+points(x=biggdiff[,1],y=biggdiff[,2], pch=1, cex=1, col='red')
+
+
+# plot histograms of some of them - joyplots?
+
+pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test.pdf'), height=10,width=14)
+
+# catterpillar plot
+plot_d <- plot_d[order(period,tmb_median)]
+plot_d$i <- rep(1:(nrow(plot_d)/4),4)
+ggplot(plot_d, aes(i, tmb_median)) + theme_bw() + # [seq(1, nrow(plot_d), 5)]
+  geom_linerange(aes(ymin = tmb_low, ymax = tmb_up), col='blue', size=.8, alpha=.2) +
+  geom_linerange(aes(x=i,ymin = inla_low, ymax = inla_up), col='red', size=.8, alpha=.2) +
+  facet_wrap(~period)
+
+
+dev.off()
+
+
+pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test.pdf'), height=10,width=20)
+
+par(mfrow=c(1,2))
+qqnorm(pred_s[777,]);abline(a=0,b=1, col='red')
+qqplot(pred_s[777,],epsilon_draws[777,])
+lines(c(0,1),c(0,1),col='red')
+
+dev.off()
+
+
+
+####
+#### MAKE TABLE
 res <- data.table(software = c('R-INLA','TMB'))
+
+# mesh size
+
+
 
 # time variables
 res[,fit_time  := c(fit_time_inla,fit_time_tmb)]
@@ -488,4 +506,8 @@ res[,hyperpar_logkappa_mean := c(res_fit$summary.hyperpar[2,2], sqrt(SD0$cov.fix
 res[,hyperpar_rho_mean := c(res_fit$summary.hyperpar[3,1], SD0$par.fixed['trho']) ]
 res[,hyperpar_rho_mean := c(res_fit$summary.hyperpar[3,2], sqrt(SD0$cov.fixed['trho','trho'])) ]
 
-write.csv(res,'tmb_inla_compare_real_data.csv')
+write.csv(res,'/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/tmb_inla_compare_real_data.csv')
+
+
+####
+#### Combine plots
