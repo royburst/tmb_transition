@@ -40,7 +40,7 @@ source('../utils.R')
 ndraws <- 250
 
 # make a chunky mesh or use the original?
-use_orig_mesh <- FALSE # TRUE
+max_edge <- 3
 
 ####################################################
 ## pull in data
@@ -65,16 +65,15 @@ coords   <- cbind(df$longitude,df$latitude)
 X_xp = as.matrix(cbind(1, df[,c(modnames,'rates'),with=FALSE]))
 
 # try with a different mesh (too dense before?)
-if(!use_orig_mesh){
   mesh_orig <- list(s=mesh_s,t=mesh_t)
   simple_polygon_list <-  load_simple_polygon(gaul_list        = get_gaul_codes('wssa'),
                                                 buffer            = 0.4)
   simple_polygon   <- simple_polygon_list[[2]]
   mesh_s <- build_space_mesh(d = df,
                              simple = simple_polygon,
-                             max_edge = 3,
+                             max_edge = max_edge,
                              mesh_offset = 2)
-}
+
 
 A.proj <- inla.spde.make.A(mesh  = mesh_s,
                            loc   = coords,
@@ -374,11 +373,51 @@ ras_med_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,1]), t=rep
 ras_sdv_inla  <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_inla[,2]), t=rep(1:nperiods,each=nrow(pred_inla)/nperiods)),"p","t")
 ras_sdv_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,2]), t=rep(1:nperiods,each=nrow(pred_tmb)/nperiods)),"p","t")
 
-####
-#### MAKE PLOTS
 
 
 pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test.pdf'), height=10,width=14)
+
+
+
+####
+#### MAKE TABLE
+res <- data.table(st_mesh_nodes    =rep(nrow(epsilon_draws),2))
+res[,s_mesh_max_edge  := rep(max_edge,2)]
+res[,periods        := c(4,4)]
+
+# time variables
+res[,fit_time  := c(fit_time_inla,fit_time_tmb)]
+res[,pred_time := c(totalpredict_time_inla,totalpredict_time_tmb)]
+
+# fe coefficients
+for(i in 1:length(res_fit$names.fixed)){
+  fn <- res_fit$names.fixed[i]
+  res[[paste0('fixedeff_',fn,'_mean')]] <- c(res_fit$summary.fixed$mean[i], SD0$value[i])
+  res[[paste0('fixedeff_',fn,'_sd')]]   <- c(res_fit$summary.fixed$sd[i], SD0$sd[i])
+}
+
+# hyperparameters
+res[,hyperpar_logtau_mean := c(res_fit$summary.hyperpar[1,1], SD0$par.fixed['logtau']) ]
+res[,hyperpar_logtau_sd := c(res_fit$summary.hyperpar[1,2], sqrt(SD0$cov.fixed['logtau','logtau'])) ]
+
+res[,hyperpar_logkappa_mean := c(res_fit$summary.hyperpar[2,1], SD0$par.fixed['logkappa']) ]
+res[,hyperpar_logkappa_sd := c(res_fit$summary.hyperpar[2,2], sqrt(SD0$cov.fixed['logkappa','logkappa'])) ]
+
+res[,hyperpar_rho_mean := c(res_fit$summary.hyperpar[3,1], SD0$par.fixed['trho']) ]
+res[,hyperpar_rho_sd := c(res_fit$summary.hyperpar[3,2], sqrt(SD0$cov.fixed['trho','trho'])) ]
+
+rr <- data.table(item=colnames(res))
+rr <- cbind(rr,t(res))
+names(rr) <- c('_','R-INLA','TMB')
+rr$diff <- rr[,2]-rr[,3]
+
+library(gridExtra)
+library(grid)
+grid.table(rr)
+
+####
+#### MAKE PLOTS
+
 for(thing in c('median','stdev')){
     layout(matrix(1:20, 4, 5, byrow = TRUE))
     samp=sample(cellIdx(ras_med_inla[[1]]),1e4)
@@ -423,7 +462,7 @@ for(thing in c('median','stdev')){
     }
 }
 
-
+layout(matrix(1, 1, 1, byrow = TRUE))
 ####
 #### Compare mean and distribution of random effects
 summ_gp_tmb  <- t(cbind((apply(epsilon_draws,1,quantile,probs=c(.1,.5,.9)))))
@@ -438,76 +477,38 @@ plot_d$period <- factor(rep(1:4,each=nrow(plot_d)/4))
 plot_d$loc    <- rep(1:(nrow(plot_d)/4),rep=4)
 
 ggplot(plot_d, aes(x=tmb_median,y=inla_median,col=period)) + theme_bw() +
-  geom_point() + geom_line(aes(group=loc)) + geom_abline(intercept=0,slope=1,col='red')
+  geom_point() + geom_line(aes(group=loc)) + geom_abline(intercept=0,slope=1,col='red') +
+  ggtitle('Posterior Medians of Random Effects at Mesh Nodes, TMB v R-INLA. Connected dots same location different periods. ')
 
 # plot locations where they are different, are they near or far from data?
 plot_d[, absdiff := abs(tmb_median-inla_median)]
 nodelocs <- do.call("rbind", replicate(4, mesh_s$loc, simplify = FALSE))
 biggdiff <- unique(nodelocs[which(plot_d$absdiff>quantile(plot_d$absdiff,prob=0.80)),])
 
-plot(simple_polygon, main='LOCATIONS OF RE WITH BIGG DIFFERENCES')
-points(x=tmp$longitude,y=tmp$latitude, pch=19, cex=0.1)
-points(x=biggdiff[,1],y=biggdiff[,2], pch=1, cex=1, col='red')
+nodelocs <- (cbind(nodelocs,plot_d))
 
-
-# plot histograms of some of them - joyplots?
-
-pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test.pdf'), height=10,width=14)
+par(mfrow=c(2,2))
+for(i in 1:4){
+  plot(simple_polygon, main='Mesh nodes sized by abs difference TMB and R-INLA')
+  points(x=df$longitude[df$period_id==i],y=df$latitude[df$period_id==i], pch=19, cex=0.1)
+  points(x=nodelocs$V1[nodelocs$period==i],y=nodelocs$V2[nodelocs$period==i], pch=1, cex=nodelocs$absdiff[nodelocs$period==i]*5, col='red')
+}
 
 # catterpillar plot
 plot_d <- plot_d[order(period,tmb_median)]
 plot_d$i <- rep(1:(nrow(plot_d)/4),4)
-ggplot(plot_d, aes(i, tmb_median)) + theme_bw() + # [seq(1, nrow(plot_d), 5)]
-  geom_linerange(aes(ymin = tmb_low, ymax = tmb_up), col='blue', size=.8, alpha=.2) +
-  geom_linerange(aes(x=i,ymin = inla_low, ymax = inla_up), col='red', size=.8, alpha=.2) +
-  facet_wrap(~period)
+ggplot(plot_d, aes(i, tmb_median, col=i)) + theme_bw() + # [seq(1, nrow(plot_d), 5)]
+  geom_linerange(aes(ymin = tmb_low, ymax = tmb_up), col='blue', size=.8, alpha=.3) +
+  geom_linerange(aes(x=i,ymin = inla_low, ymax = inla_up), col='red', size=.8, alpha=.3) +
+  facet_wrap(~period) +
+  ggtitle('Comparison of random effects (10% to 90% quantiles) ... RED == R-INLA ... BLUE == TMB')
 
-
-dev.off()
-
-
-pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test.pdf'), height=10,width=20)
-
-par(mfrow=c(1,2))
-qqnorm(pred_s[777,]);abline(a=0,b=1, col='red')
-qqplot(pred_s[777,],epsilon_draws[777,])
-lines(c(0,1),c(0,1),col='red')
+# COMPARE DISTRIBUTIONS
+#par(mfrow=c(1,2))
+#qqnorm(pred_s[777,]);abline(a=0,b=1, col='red')#
+#qqplot(pred_s[777,],epsilon_draws[777,])
+#lines(c(0,1),c(0,1),col='red')
 
 dev.off()
 
-
-
-####
-#### MAKE TABLE
-res <- data.table(software = c('R-INLA','TMB'))
-
-# mesh size
-
-
-
-# time variables
-res[,fit_time  := c(fit_time_inla,fit_time_tmb)]
-res[,pred_time := c(totalpredict_time_inla,totalpredict_time_tmb)]
-
-# fe coefficients
-for(i in 1:length(res_fit$names.fixed)){
-  fn <- res_fit$names.fixed[i]
-  res[[paste0('fixedeff_',fn,'_mean')]] <- c(res_fit$summary.fixed$mean[i], SD0$value[i])
-  res[[paste0('fixedeff_',fn,'_sd')]]   <- c(res_fit$summary.fixed$sd[i], SD0$sd[i])
-}
-
-# hyperparameters
-res[,hyperpar_logtau_mean := c(res_fit$summary.hyperpar[1,1], SD0$par.fixed['logtau']) ]
-res[,hyperpar_logtau_mean := c(res_fit$summary.hyperpar[1,2], sqrt(SD0$cov.fixed['logtau','logtau'])) ]
-
-res[,hyperpar_logkappa_mean := c(res_fit$summary.hyperpar[2,1], SD0$par.fixed['logkappa']) ]
-res[,hyperpar_logkappa_mean := c(res_fit$summary.hyperpar[2,2], sqrt(SD0$cov.fixed['logkappa','logkappa'])) ]
-
-res[,hyperpar_rho_mean := c(res_fit$summary.hyperpar[3,1], SD0$par.fixed['trho']) ]
-res[,hyperpar_rho_mean := c(res_fit$summary.hyperpar[3,2], sqrt(SD0$cov.fixed['trho','trho'])) ]
-
-write.csv(res,'/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/tmb_inla_compare_real_data.csv')
-
-
-####
-#### Combine plots
+#write.csv(res,'/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/tmb_inla_compare_real_data.csv')
