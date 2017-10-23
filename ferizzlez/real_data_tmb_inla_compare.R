@@ -40,7 +40,7 @@ source('../utils.R')
 ndraws <- 250
 
 # make a chunky mesh or use the original?
-max_edge <- 3
+max_edge <- .5
 
 ####################################################
 ## pull in data
@@ -375,7 +375,7 @@ ras_sdv_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,2]), t=rep
 
 
 
-pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test.pdf'), height=10,width=14)
+pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test2s.pdf'), height=10,width=14)
 
 
 
