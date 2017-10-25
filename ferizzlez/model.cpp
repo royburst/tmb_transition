@@ -77,7 +77,7 @@ Type objective_function<Type>::operator() ()
   // Options
   DATA_VECTOR(options)       // boolean vector of options to be used to select different models/modelling options:
                              // 0: Include priors. All are default settings right now
-                             // 1:
+                             // 1: If 0, ADREPORT is on. Used for testing for now
                              // 2:
 
   // Parameters
@@ -182,8 +182,10 @@ Type objective_function<Type>::operator() ()
   }
 
   // Report estimates
-  ADREPORT(alpha_j);
-  ADREPORT(Epsilon_stz);
+  if(options[1] == 0){
+    ADREPORT(alpha_j);
+    ADREPORT(Epsilon_stz);
+  }
 
   return jnll;
 }

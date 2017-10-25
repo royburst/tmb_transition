@@ -40,7 +40,7 @@ source('../utils.R')
 ndraws <- 250
 
 # make a chunky mesh or use the original?
-max_edge <- .5
+max_edge <- 1
 
 ####################################################
 ## pull in data
@@ -100,8 +100,8 @@ Data = list(num_i=nrow(df),                 ## Total number of observations
             M1=spde$param.inla$M1,          ## SPDE sparse matrix
             M2=spde$param.inla$M2,          ## SPDE sparse matrix
             Aproj = A.proj,                 ## mesh to prediction point projection matrix
-            options = c(1))                 ## option1==1 use priors
-
+            options = c(1,1))                 ## option1==1 use priors
+                                              ## option2==1 ADREPORT off
 
   ## staring values for parameters
   Parameters = list(alpha_j   =  rep(0,ncol(X_xp)),                 ## FE parameters alphas
@@ -143,7 +143,7 @@ fit_time_tmb <- proc.time()[3] - ptm
 # Get standard errors
 ## Report0 = obj$report()
 ptm <- proc.time()[3]
-SD0 = sdreport(obj,getReportCovariance=TRUE,bias.correct=TRUE)
+SD0 = sdreport(obj,getReportCovariance=TRUE,bias.correct=FALSE)
 ## fe_var_covar <- SD0$cov.fixed
 tmb_sdreport_time <- proc.time()[3] - ptm
 
@@ -375,7 +375,7 @@ ras_sdv_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,2]), t=rep
 
 
 
-pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test2s.pdf'), height=10,width=14)
+pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_1degmesh_nobiascorrectsdreport.pdf'), height=10,width=14)
 
 
 
