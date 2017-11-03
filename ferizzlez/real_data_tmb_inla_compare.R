@@ -387,7 +387,7 @@ ras_sdv_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,2]), t=rep
 
 
 
-pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_1degmesh_tmbprecisionmatrix.pdf'), height=10,width=14)
+pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_halfdegree_mesh_withspeedups.pdf'), height=10,width=14)
 
 
 
