@@ -8,6 +8,9 @@
 # numactl --physcpubind=+0-9
 # /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R
 
+# OR JUST RUN THE SCRIPT:
+ ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save
+
 
 ############### SETUP
 rm(list=ls())
@@ -155,7 +158,7 @@ tmb_sdreport_time <- proc.time()[3] - ptm
 # NOTE getReportCovariance returns for ADREPORTED variables which are used from transofrms, if none are reported, just do getJointPrecision
 # So lets invert the precision matrix to get the joint covariance
 ptm <- proc.time()[3]
-sigma <- as.matrix(solve(SD0$jointPrecision))s
+sigma <- as.matrix(solve(SD0$jointPrecision))
 tmb_invert_precision_matrix <- proc.time()[3] - ptm
 
 ##### Prediction
