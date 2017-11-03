@@ -1,8 +1,14 @@
 #### Try to run TMB on real u5m data (one age bin region)
 
-# NOTES: MKL: export OMP_NUM_THREADS = 10; /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R
-#
-
+# NOTES: RUN THESE LINES BEFORE LAUNCHING R
+if(TRUE == FALSE){
+ source /homes/imdavis/intel/mkl/bin/mklvars.sh intel64
+ export MKL_INTERFACE_LAYER=GNU,LP64
+ export MKL_THREADING_LAYER=GNU
+ export OMP_NUM_THREADS=10
+ numactl --physcpubind=+0-9
+ /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R
+}
 
 ############### SETUP
 rm(list=ls())
@@ -15,6 +21,7 @@ options(scipen=999)
 library(INLA)
 if(grepl("geos", Sys.info()[4])) INLA:::inla.dynload.workaround()
 require('TMB', lib.loc='/snfs2/HOME/azimmer/R/x86_64-pc-linux-gnu-library/3.3/') # COMPILED WITH METIS
+require('mvnfast',lib.loc='/home/j/temp/geospatial/sandbox_packages/')
 library(data.table)
 library(RandomFields)
 library(raster)
@@ -40,7 +47,7 @@ source('../utils.R')
 ndraws <- 250
 
 # make a chunky mesh or use the original?
-max_edge <- 1
+max_edge <- .5
 
 ####################################################
 ## pull in data
@@ -143,14 +150,19 @@ fit_time_tmb <- proc.time()[3] - ptm
 # Get standard errors
 ## Report0 = obj$report()
 ptm <- proc.time()[3]
-SD0 = sdreport(obj,getReportCovariance=TRUE,bias.correct=FALSE)
-## fe_var_covar <- SD0$cov.fixed
+SD0 = TMB::sdreport(obj,getJointPrecision=TRUE, getReportCovariance=TRUE,bias.correct=FALSE)
 tmb_sdreport_time <- proc.time()[3] - ptm
+
+# NOTE getReportCovariance returns for ADREPORTED variables which are used from transofrms, if none are reported, just do getJointPrecision
+# So lets invert the precision matrix to get the joint covariance
+ptm <- proc.time()[3]
+sigma <- as.matrix(solve(SD0$jointPrecision))s
+tmb_invert_precision_matrix <- proc.time()[3] - ptm
 
 ##### Prediction
 message('making predictions')
-mu    <- c(SD0$value)
-sigma <- SD0$cov
+mu    <- c(SD0$par.fixed,SD0$par.random) #c(SD0$value)
+#sigma <- SD0$cov
 
 ### simulate draws
 require(MASS)
@@ -201,8 +213,8 @@ if(!is.positive.definite(sigma)){
 
 ## now we can take draws
 message('Predicting Draws')
-draws  <- t(mvrnorm(n=ndraws,mu=mu,Sigma=sigma))
-  ## ^ look for a quicker way to do this..cholesky
+draws  <- t(mvnfast::rmvn(n=ndraws,mu=mu,sigma=sigma))
+# sped up with mvnfast https://cran.r-project.org/web/packages/mvnfast/vignettes/mvnfast.html
 
 ## separate out the draws
 epsilon_draws <- draws[rownames(draws)=='Epsilon_stz',]
@@ -375,7 +387,7 @@ ras_sdv_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,2]), t=rep
 
 
 
-pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_1degmesh_nobiascorrectsdreport.pdf'), height=10,width=14)
+pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_1degmesh_tmbprecisionmatrix.pdf'), height=10,width=14)
 
 
 
@@ -392,8 +404,8 @@ res[,pred_time := c(totalpredict_time_inla,totalpredict_time_tmb)]
 # fe coefficients
 for(i in 1:length(res_fit$names.fixed)){
   fn <- res_fit$names.fixed[i]
-  res[[paste0('fixedeff_',fn,'_mean')]] <- c(res_fit$summary.fixed$mean[i], SD0$value[i])
-  res[[paste0('fixedeff_',fn,'_sd')]]   <- c(res_fit$summary.fixed$sd[i], SD0$sd[i])
+  res[[paste0('fixedeff_',fn,'_mean')]] <- c(res_fit$summary.fixed$mean[i], SD0$par.fixed[i])
+  res[[paste0('fixedeff_',fn,'_sd')]]   <- c(res_fit$summary.fixed$sd[i], sqrt(SD0$cov.fixed[i,i]))
 }
 
 # hyperparameters
