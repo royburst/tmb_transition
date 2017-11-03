@@ -1,14 +1,13 @@
 #### Try to run TMB on real u5m data (one age bin region)
 
 # NOTES: RUN THESE LINES BEFORE LAUNCHING R
-if(TRUE == FALSE){
- source /homes/imdavis/intel/mkl/bin/mklvars.sh intel64
- export MKL_INTERFACE_LAYER=GNU,LP64
- export MKL_THREADING_LAYER=GNU
- export OMP_NUM_THREADS=10
- numactl --physcpubind=+0-9
- /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R
-}
+# source /homes/imdavis/intel/mkl/bin/mklvars.sh intel64
+# export MKL_INTERFACE_LAYER=GNU,LP64
+# export MKL_THREADING_LAYER=GNU
+# export OMP_NUM_THREADS=10
+# numactl --physcpubind=+0-9
+# /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R
+
 
 ############### SETUP
 rm(list=ls())
