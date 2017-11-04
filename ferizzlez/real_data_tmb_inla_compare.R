@@ -28,6 +28,7 @@ library(data.table)
 library(RandomFields)
 library(raster)
 library(viridis)
+library(ggplot2)
 
 ## need to set to same directory as the template file, also pull from git
 ## Clone the git directory to your H drive and this should work for anyone
@@ -49,7 +50,7 @@ source('../utils.R')
 ndraws <- 250
 
 # make a chunky mesh or use the original?
-max_edge <- .5
+max_edge <- .25
 
 ####################################################
 ## pull in data
@@ -129,7 +130,7 @@ system(paste0('cd ',dir,'\ngit pull origin develop'))
 templ <- "model"
 TMB::compile(paste0(templ,".cpp"))
 dyn.load( dynlib(templ) )
-openmp(10)
+openmp(25)
 config(tape.parallel=0, DLL=templ)
 
 obj <- MakeADFun(data=Data, parameters=Parameters,  map=list(zrho=factor(NA)), random="Epsilon_stz", hessian=TRUE, DLL=templ)
@@ -157,6 +158,7 @@ tmb_sdreport_time <- proc.time()[3] - ptm
 
 # NOTE getReportCovariance returns for ADREPORTED variables which are used from transofrms, if none are reported, just do getJointPrecision
 # So lets invert the precision matrix to get the joint covariance
+# ALSO LOOK INTO THIS, SO WE DONT HAVE TO INVERT IT MAYBE https://cran.r-project.org/web/packages/sparseMVN/sparseMVN.pdf
 ptm <- proc.time()[3]
 sigma <- as.matrix(solve(SD0$jointPrecision))
 tmb_invert_precision_matrix <- proc.time()[3] - ptm
@@ -315,7 +317,7 @@ res_fit <- inla(formula,
                 control.inla = list(int.strategy = 'eb', h = 1e-3, tolerance = 1e-6),
                 control.compute=list(config = TRUE),
                 family = 'binomial',
-                num.threads = 10,
+                num.threads = 25,
                 Ntrials = df$N,
                 weights = df$weight,
                 verbose = TRUE,
@@ -390,7 +392,7 @@ ras_sdv_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,2]), t=rep
 
 
 
-pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_halfdegree_mesh_withspeedups.pdf'), height=10,width=14)
+pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_quarterdegree_mesh_withspeedups.pdf'), height=10,width=14)
 
 
 
