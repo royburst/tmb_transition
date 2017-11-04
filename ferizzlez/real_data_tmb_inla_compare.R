@@ -219,8 +219,9 @@ draws  <- t(mvnfast::rmvn(n=ndraws,mu=mu,sigma=sigma))
 # sped up with mvnfast https://cran.r-project.org/web/packages/mvnfast/vignettes/mvnfast.html
 
 ## separate out the draws
-epsilon_draws <- draws[rownames(draws)=='Epsilon_stz',]
-alpha_draws   <- draws[rownames(draws)=='alpha_j',]
+parnames <- c(names(SD0$par.fixed), names(SD0$par.random))
+epsilon_draws <- draws[parnames=='Epsilon_stz',]
+alpha_draws   <- draws[parnames=='alpha_j',]
 
 
 # use one of the covariate layers as a 'fullsamplespace',
