@@ -167,9 +167,9 @@ tmb_sdreport_time <- proc.time()[3] - ptm
 # NOTE getReportCovariance returns for ADREPORTED variables which are used from transofrms, if none are reported, just do getJointPrecision
 # So lets invert the precision matrix to get the joint covariance
 # ALSO LOOK INTO THIS, SO WE DONT HAVE TO INVERT IT MAYBE https://cran.r-project.org/web/packages/sparseMVN/sparseMVN.pdf
-ptm <- proc.time()[3]
-sigma <- as.matrix(solve(SD0$jointPrecision))
-tmb_invert_precision_matrix <- proc.time()[3] - ptm
+#ptm <- proc.time()[3]
+#sigma <- as.matrix(solve(SD0$jointPrecision))
+#tmb_invert_precision_matrix <- proc.time()[3] - ptm
 
 ##### Prediction
 message('making predictions')
