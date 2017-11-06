@@ -52,7 +52,7 @@ ndraws <- 250
 
 # make a chunky mesh or use the original?
 message(paste0(commandArgs(),collapse=' ,'))
-if(length(commandArgs) < 4) {
+if(length(commandArgs()) < 4) {
   max_edge <- 3
 } else {
   max_edge <-  as.numeric(commandArgs()[4])
