@@ -51,6 +51,7 @@ source('../utils.R')
 ndraws <- 250
 
 # make a chunky mesh or use the original?
+message(paste0(commandArgs(),collapse=' ,'))
 max_edge <-  as.numeric(commandArgs()[1])
 message(sprintf('MAX EDGE: ', max_edge))
 
