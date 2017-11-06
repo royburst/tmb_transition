@@ -9,7 +9,7 @@
 # /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R
 
 # OR JUST RUN THE SCRIPT:
- ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save
+ ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save --args 2
 
 
 ############### SETUP
@@ -29,6 +29,7 @@ library(RandomFields)
 library(raster)
 library(viridis)
 library(ggplot2)
+library(MASS)
 
 ## need to set to same directory as the template file, also pull from git
 ## Clone the git directory to your H drive and this should work for anyone
@@ -50,7 +51,8 @@ source('../utils.R')
 ndraws <- 250
 
 # make a chunky mesh or use the original?
-max_edge <- .25
+max_edge <-  as.numeric(commandArgs()[1])
+message(sprintf('MAX EDGE: ', max_edge))
 
 ####################################################
 ## pull in data
@@ -169,56 +171,8 @@ mu    <- c(SD0$par.fixed,SD0$par.random) #c(SD0$value)
 #sigma <- SD0$cov
 
 ### simulate draws
-require(MASS)
-npar   <- length(mu)
-
-## make sigma symmetric
-require(matrixcalc)
-i <- 0
-while(!is.symmetric.matrix(sigma)){
-  sigma <- round(sigma, 10 - i)
-  i <- i + 1
-}
-if(i>9) stop('Too much rounding of sigma to make it symmetric, something is wrong.')
-
-message(sprintf("rounded sigma to %i decimals to make it symmetric", 10 - i - 1))
-
-
-## round more or add to diagonal to make sigma pos-def
-if(!is.positive.definite(sigma)){
-  if(fixsigma){
-    message('Sigma was not positive definite, tryna fix it')
-    i <- 0
-    sigma2 <- sigma
-    while(!is.positive.definite(sigma2) & i < 6){
-      message(i)
-      sigma2 <- round(sigma2, 10 - i)
-      i <- i + 1
-    }
-    if(is.positive.definite(sigma2)){
-      sigma <- sigma2
-      message(sprintf("rounded sigma to %i decimals to make it pos-def", 10 - i - 1))
-    }else{
-      i <- 0
-      message('adding to diag approach')
-      while(!is.positive.definite(sigma)){
-        message(i)
-        sigma <- sigma + diag(1, nrow(sigma))
-        i <- i + 1
-      }
-      message(sprintf("added %i to the diagonal to make sigma pos-def", i))
-    }
-  } else {
-    stop('Sigma was not definite positive and you set fixsigma==FALSE. So this is an error.')
-  }
-} else{
-  message('Sigma was positive definite hurray')
-}
-
-## now we can take draws
 message('Predicting Draws')
-draws  <- t(mvnfast::rmvn(n=ndraws,mu=mu,sigma=sigma))
-# sped up with mvnfast https://cran.r-project.org/web/packages/mvnfast/vignettes/mvnfast.html
+draws <- rmvnorm_prec(mu,SD0$jointPrecision,ndraws)
 
 ## separate out the draws
 parnames <- c(names(SD0$par.fixed), names(SD0$par.random))
@@ -392,7 +346,7 @@ ras_sdv_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,2]), t=rep
 
 
 
-pdf(paste0('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_quarterdegree_mesh_withspeedups.pdf'), height=10,width=14)
+pdf(sprintf('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_%sdegree_mesh_withspeedups.pdf',as.character(max_edge)), height=10,width=14)
 
 
 

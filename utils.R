@@ -1,4 +1,13 @@
 #######
+## Simulate from an MVN using precision matrix. A la LDL
+rmvnorm_prec <- function(mu, prec, n.sims) {
+  z = matrix(rnorm(length(mu) * n.sims), ncol=n.sims)
+  L_inv = Cholesky(prec)
+  mu + solve(as(L_inv, "pMatrix"), solve(t(as(L_inv, "Matrix")), z))
+}
+
+
+#######
 ## A function to make a random covariate
 makeRandomCovariate <- function(extent = c(0,1,0,1),
                                 mean   = 0,
