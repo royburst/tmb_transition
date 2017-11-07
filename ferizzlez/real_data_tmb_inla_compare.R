@@ -10,7 +10,7 @@
 # OR JUST IN my basrc i have R_MKL $numcores
 
 # OR JUST RUN THE SCRIPT:
- ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save --args 0.25
+ ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save --args 0.5
 
 
 ############### SETUP
@@ -454,11 +454,10 @@ plot_d$period <- factor(rep(1:4,each=nrow(plot_d)/4))
 plot_d$loc    <- rep(1:(nrow(plot_d)/4),rep=4)
 
 if(nrow(plot_d)>2500)
-  plot_d_samp <- plot_d[sample(nrow(plot_d),2500,replace=F)]
-else
-  plot_d_samp <- plot_d
+  plot_d <- plot_d[sample(nrow(plot_d),2500,replace=F),]
 
-ggplot(plot_d_samp, aes(x=tmb_median,y=inla_median,col=period)) + theme_bw() +
+
+ggplot(plot_d, aes(x=tmb_median,y=inla_median,col=period)) + theme_bw() +
   geom_point() + geom_line(aes(group=loc)) + geom_abline(intercept=0,slope=1,col='red') +
   ggtitle('Posterior Medians of Random Effects at Mesh Nodes, TMB v R-INLA. Connected dots same location different periods. ')
 
@@ -479,9 +478,9 @@ for(i in 1:4){
 }
 
 # catterpillar plot
-plot_d_samp <- plot_d_samp[order(period,tmb_median)]
-plot_d_samp[,i := seq(1,.N), by = period]
-ggplot(plot_d_samp, aes(i, tmb_median, col=i)) + theme_bw() + # [seq(1, nrow(plot_d), 5)]
+plot_d <- plot_d[order(period,tmb_median)]
+plot_d[,i := seq(1,.N), by = period]
+ggplot(plot_d, aes(i, tmb_median, col=i)) + theme_bw() + # [seq(1, nrow(plot_d), 5)]
   geom_linerange(aes(ymin = tmb_low, ymax = tmb_up), col='blue', size=.8, alpha=.3) +
   geom_linerange(aes(x=i,ymin = inla_low, ymax = inla_up), col='red', size=.8, alpha=.3) +
   facet_wrap(~period) +
