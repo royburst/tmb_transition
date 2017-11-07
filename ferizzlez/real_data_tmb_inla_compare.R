@@ -10,7 +10,7 @@
 # OR JUST IN my basrc i have R_MKL $numcores
 
 # OR JUST RUN THE SCRIPT:
- ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save --args 0.5
+ ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save --args 5
 
 
 ############### SETUP
@@ -49,14 +49,16 @@ setwd(paste0(dir,"/ferizzlez"))
 source('../utils.R')
 
 # draws for prediction
-ndraws <- 250
 
 # make a chunky mesh or use the original?
 message(paste0(commandArgs(),collapse=' ,'))
 if(length(commandArgs()) < 4) {
   max_edge <- 4
+  ndraws <- 250
 } else {
   max_edge <-  as.numeric(commandArgs()[4])
+  ndraws <- as.numeric(commandArgs()[5])
+
 }
 message(sprintf('MAX EDGE: ', max_edge))
 
