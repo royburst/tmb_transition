@@ -1,5 +1,9 @@
 #######
 ## Simulate from an MVN using precision matrix. A la LDL
+
+
+
+
 rmvnorm_prec <- function(mu, prec, n.sims) {
   z = matrix(rnorm(length(mu) * n.sims), ncol=n.sims)
   L_inv = Cholesky(prec)

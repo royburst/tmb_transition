@@ -10,7 +10,7 @@
 # OR JUST IN my basrc i have R_MKL $numcores
 
 # OR JUST RUN THE SCRIPT:
- ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save --args 5
+ ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save --args .25 10 10
 
 
 ############### SETUP
@@ -31,6 +31,7 @@ library(raster)
 library(viridis)
 library(ggplot2)
 library(MASS)
+library(parallel)
 
 ## need to set to same directory as the template file, also pull from git
 ## Clone the git directory to your H drive and this should work for anyone
@@ -52,15 +53,19 @@ source('../utils.R')
 
 # make a chunky mesh or use the original?
 message(paste0(commandArgs(),collapse=' ,'))
-if(length(commandArgs()) < 4) {
-  max_edge <- 4
-  ndraws <- 250
-} else {
+max_edge <- 4
+ndraws <- 250
+ncores <- 10
+if(length(commandArgs()) > 4){
   max_edge <-  as.numeric(commandArgs()[4])
-  ndraws <- as.numeric(commandArgs()[5])
-
+  ndraws   <- as.numeric(commandArgs()[5])
+  ncores   <- as.numeric(commandArgs()[6])
 }
-message(sprintf('MAX EDGE: ', max_edge))
+ndraws <- round(ndraws/ncores,0)*ncores # for parallelizing later
+message(sprintf('MAX EDGE: %s', max_edge))
+message(sprintf('NDRAWS  : %s', ndraws))
+message(sprintf('CORES   : %s', ncores))
+
 
 ####################################################
 ## pull in data
@@ -107,6 +112,47 @@ nperiods <- length(unique(df$period_id))
 spde <- inla.spde2.matern( mesh_s,alpha=2 ) ## Build SPDE object using INLA (must pass mesh$idx$loc when supplying Boundary)
 
 
+# use one of the covariate layers as a 'fullsamplespace',
+# DOING IT TWICE TO MAKE FAIRER TIME COMPARISON
+f_orig <- data.table(cbind(coordinates(cov_list[[1]][[1]]),t=1))
+# add time periods
+fullsamplespace <- copy(f_orig)
+for(p in 2:nperiods){
+  tmp <- f_orig
+  tmp[,t := p]
+  fullsamplespace <- rbind(fullsamplespace,tmp)
+}
+# pull out covariates in format we expect them
+# a list of length periods with a brick of named covariates inside
+new_cl <- list()
+for(p in 1:nperiods){
+  new_cl[[p]] <- list()
+  for(n in names(cov_list)){
+    new_cl[[p]][[n]] <- cov_list[[n]][[p]]
+  }
+  new_cl[[p]] <- brick(new_cl[[p]])
+}
+
+## get surface to project on to
+pcoords <- cbind(x=fullsamplespace$x, y=fullsamplespace$y)
+groups_periods <- fullsamplespace$t
+
+## use inla helper functions to project the spatial effect.
+A.pred <- inla.spde.make.A(
+    mesh = mesh_s,
+    loc = pcoords,
+    group = groups_periods)
+
+## extract cell values  from covariates, deal with timevarying covariates here
+cov_vals <- list()
+for(p in 1:nperiods){
+  message(p)
+  cov_vals[[p]] <- raster::extract(new_cl[[p]], pcoords[1:(nrow(fullsamplespace)/nperiods),])
+  cov_vals[[p]] <- (cbind(int = 1, cov_vals[[p]]))
+}
+
+
+
 Data = list(num_i=nrow(df),                 ## Total number of observations
             num_s=mesh_s$n,                 ## Number of vertices in SPDE mesh
             num_t=nperiods,                  ## Number of periods
@@ -140,7 +186,7 @@ system(paste0('cd ',dir,'\ngit pull origin develop'))
 templ <- "model"
 TMB::compile(paste0(templ,".cpp"))
 dyn.load( dynlib(templ) )
-openmp(25)
+openmp(ncores)
 config(tape.parallel=0, DLL=templ)
 
 obj <- MakeADFun(data=Data, parameters=Parameters,  map=list(zrho=factor(NA)), random="Epsilon_stz", hessian=TRUE, DLL=templ)
@@ -163,81 +209,38 @@ fit_time_tmb <- proc.time()[3] - ptm
 # Get standard errors
 ## Report0 = obj$report()
 ptm <- proc.time()[3]
-SD0 = TMB::sdreport(obj,getJointPrecision=TRUE, getReportCovariance=TRUE,bias.correct=FALSE)
+SD0 = TMB::sdreport(obj,getJointPrecision=TRUE)
 tmb_sdreport_time <- proc.time()[3] - ptm
-
-# NOTE getReportCovariance returns for ADREPORTED variables which are used from transofrms, if none are reported, just do getJointPrecision
-# So lets invert the precision matrix to get the joint covariance
-# ALSO LOOK INTO THIS, SO WE DONT HAVE TO INVERT IT MAYBE https://cran.r-project.org/web/packages/sparseMVN/sparseMVN.pdf
-#ptm <- proc.time()[3]
-#sigma <- as.matrix(solve(SD0$jointPrecision))
-#tmb_invert_precision_matrix <- proc.time()[3] - ptm
 
 ##### Prediction
 message('making predictions')
-mu    <- c(SD0$par.fixed,SD0$par.random) #c(SD0$value)
-#sigma <- SD0$cov
+mu    <- c(SD0$par.fixed,SD0$par.random)
 
 ### simulate draws
-message('Predicting Draws')
-draws <- rmvnorm_prec(mu,SD0$jointPrecision,ndraws)
+ptm2 <- proc.time()[3]
+draws <- do.call('cbind',
+          mclapply(rep(ndraws/ncores,ncores), rmvnorm_prec, mu = mu , prec = SD0$jointPrecision, mc.cores = ncores))
+tmb_get_draws_time <- proc.time()[3] - ptm2
 
 ## separate out the draws
 parnames <- c(names(SD0$par.fixed), names(SD0$par.random))
 epsilon_draws <- draws[parnames=='Epsilon_stz',]
 alpha_draws   <- draws[parnames=='alpha_j',]
 
-
-# use one of the covariate layers as a 'fullsamplespace',
-f_orig <- data.table(cbind(coordinates(cov_list[[1]][[1]]),t=1))
-# add time periods
-fullsamplespace <- copy(f_orig)
-for(p in 2:nperiods){
-  tmp <- f_orig
-  tmp[,t := p]
-  fullsamplespace <- rbind(fullsamplespace,tmp)
-}
-
-# pull out covariates in format we expect them
-# a list of length periods with a brick of named covariates inside
-new_cl <- list()
-for(p in 1:nperiods){
-  new_cl[[p]] <- list()
-  for(n in names(cov_list)){
-    new_cl[[p]][[n]] <- cov_list[[n]][[p]]
-  }
-  new_cl[[p]] <- brick(new_cl[[p]])
-}
-
-## get surface to project on to
-pcoords <- cbind(x=fullsamplespace$x, y=fullsamplespace$y)
-groups_periods <- fullsamplespace$t
-
-## use inla helper functions to project the spatial effect.
-A.pred <- inla.spde.make.A(
-    mesh = mesh_s,
-    loc = pcoords,
-    group = groups_periods)
-
 ## values of S at each cell (long by nperiods)
 cell_s <- as.matrix(A.pred %*% epsilon_draws)
 
-## extract cell values  from covariates, deal with timevarying covariates here
-vals <- list()
-for(p in 1:nperiods){
-  message(p)
-  vals[[p]] <- raster::extract(new_cl[[p]], pcoords[1:(nrow(fullsamplespace)/nperiods),])
-  vals[[p]] <- (cbind(int = 1, vals[[p]]))
-  vals[[p]] <- vals[[p]] %*% alpha_draws # same as getting cell_ll for each time period
-}
-cell_l <- do.call(rbind,vals)
+# covariate values by alpha draws
+tmb_vals <- list()
+for(p in 1:nperiods)  tmb_vals[[p]] <- cov_vals[[p]] %*% alpha_draws
+
+cell_l <- do.call(rbind,tmb_vals)
 
 ## add together linear and st components
 pred_tmb <- cell_l + cell_s
 
 # save prediction timing
 totalpredict_time_tmb <- proc.time()[3] - ptm
-
 
 
 #########################################
@@ -279,11 +282,11 @@ res_fit <- inla(formula,
                 control.inla = list(int.strategy = 'eb', h = 1e-3, tolerance = 1e-6),
                 control.compute=list(config = TRUE),
                 family = 'binomial',
-                num.threads = 25,
+                num.threads = ncores,
                 Ntrials = df$N,
                 weights = df$weight,
                 verbose = TRUE,
-                keep = TRUE)
+                keep = FALSE)
 fit_time_inla <- proc.time()[3] - ptm
 
 
@@ -292,6 +295,7 @@ fit_time_inla <- proc.time()[3] - ptm
 #### predict with INLA
 ptm <- proc.time()[3]
 draws <- inla.posterior.sample(ndraws, res_fit)
+inla_get_draws_time <- proc.time()[3] - ptm
 
 ## get parameter names
 par_names <- rownames(draws[[1]]$latent)
@@ -305,30 +309,15 @@ pred_s <- sapply(draws, function (x) x$latent[s_idx])
 pred_l <- sapply(draws, function (x) x$latent[l_idx])
 rownames(pred_l) <- res_fit$names.fixed
 
-## replicate coordinates and years (from above in tmb predict)
-pcoords <- cbind(x=fullsamplespace$x, y=fullsamplespace$y)
-groups_periods <- fullsamplespace$t
-
-## use inla helper functions to project the spatial effect.
-A.pred <- inla.spde.make.A(mesh = mesh_s,
-                           loc = pcoords,
-                           group = groups_periods)
 
 ## get samples of s for all coo locations
-s <- A.pred %*% pred_s
-s <- as.matrix(s)
-
+s <- as.matrix(A.pred %*% pred_s)
 
 ## extract cell values  from covariates, deal with timevarying covariates here
-vals <- list()
-for(p in 1:nperiods){
-  message(p)
-  vals[[p]] <- raster::extract(new_cl[[p]], pcoords[1:(nrow(fullsamplespace)/nperiods),])
-  vals[[p]] <- (cbind(int = 1, vals[[p]]))
-  vals[[p]] <- vals[[p]] %*% pred_l# same as getting cell_ll for each time period
-}
+inla_vals <- list()
+for(p in 1:nperiods)  inla_vals[[p]] <- cov_vals[[p]] %*% pred_l
 
-l <- do.call(rbind,vals)
+l <- do.call(rbind,inla_vals)
 
 pred_inla <- s+l
 
@@ -354,19 +343,22 @@ ras_sdv_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,2]), t=rep
 
 
 
-pdf(sprintf('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_%sdegree_mesh_withspeedups.pdf',as.character(max_edge)), height=10,width=14)
+pdf(sprintf('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_%sdegree_mesh_withspeedups2.pdf',as.character(max_edge)), height=10,width=14)
 
 
 
 ####
 #### MAKE TABLE
 res <- data.table(st_mesh_nodes    =rep(nrow(epsilon_draws),2))
+res[,cores  := rep(ncores,2)]
 res[,s_mesh_max_edge  := rep(max_edge,2)]
 res[,periods        := c(4,4)]
 
 # time variables
 res[,fit_time  := c(fit_time_inla,fit_time_tmb)]
 res[,pred_time := c(totalpredict_time_inla,totalpredict_time_tmb)]
+res[,pt_tmb_sdreport_time := c(NA,tmb_sdreport_time)]
+res[,pt_get_draws_time := c(inla_get_draws_time,tmb_get_draws_time)]
 
 # fe coefficients
 for(i in 1:length(res_fit$names.fixed)){
@@ -488,11 +480,6 @@ ggplot(plot_d, aes(i, tmb_median, col=i)) + theme_bw() + # [seq(1, nrow(plot_d),
   facet_wrap(~period) +
   ggtitle('Comparison of random effects (10% to 90% quantiles) ... RED == R-INLA ... BLUE == TMB')
 
-# COMPARE DISTRIBUTIONS
-#par(mfrow=c(1,2))
-#qqnorm(pred_s[777,]);abline(a=0,b=1, col='red')#
-#qqplot(pred_s[777,],epsilon_draws[777,])
-#lines(c(0,1),c(0,1),col='red')
 
 dev.off()
 
