@@ -353,6 +353,7 @@ res <- data.table(st_mesh_nodes    =rep(nrow(epsilon_draws),2))
 res[,cores  := rep(ncores,2)]
 res[,s_mesh_max_edge  := rep(max_edge,2)]
 res[,periods        := c(4,4)]
+res[,draws        := c(ndraws,ndraws)]
 
 # time variables
 res[,fit_time  := c(fit_time_inla,fit_time_tmb)]
