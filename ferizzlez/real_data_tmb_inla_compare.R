@@ -10,7 +10,7 @@
 # OR JUST IN my basrc i have R_MKL $numcores
 
 # OR JUST RUN THE SCRIPT:
- ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save --args .25 10 10
+ ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save --args .5 100 20
 
 
 ############### SETUP
@@ -187,7 +187,7 @@ templ <- "model"
 TMB::compile(paste0(templ,".cpp"))
 dyn.load( dynlib(templ) )
 openmp(ncores)
-config(tape.parallel=0, DLL=templ)
+#config(tape.parallel=0, DLL=templ)
 
 obj <- MakeADFun(data=Data, parameters=Parameters,  map=list(zrho=factor(NA)), random="Epsilon_stz", hessian=TRUE, DLL=templ)
 
