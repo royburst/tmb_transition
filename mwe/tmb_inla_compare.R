@@ -24,96 +24,80 @@ options(scipen=999)
 library(INLA)
 if(grepl("geos", Sys.info()[4])) INLA:::inla.dynload.workaround()
 require('TMB', lib.loc='/snfs2/HOME/azimmer/R/x86_64-pc-linux-gnu-library/3.3/') # COMPILED WITH METIS
-require('mvnfast',lib.loc='/home/j/temp/geospatial/sandbox_packages/')
+#require('mvnfast',lib.loc='/home/j/temp/geospatial/sandbox_packages/')
 library(data.table)
-library(RandomFields)
+#library(RandomFields)
 library(raster)
 library(viridis)
 library(ggplot2)
 library(MASS)
 library(parallel)
 
-## need to set to same directory as the template file, also pull from git
-## Clone the git directory to your H drive and this should work for anyone
-dir <- paste0("/homes/",Sys.info()['user'],"/tmb_transition")
-system(paste0('cd ',dir,'\ngit pull origin develop'))
+
+## Print out information on session
+sessionInfo()
 
 # MBG FUNCTIONS
-setwd('/share/code/geospatial/royburst/mbg/')
+#setwd('/share/code/geospatial/royburst/mbg/')
 for(funk in list.files(recursive=TRUE,pattern='functions')) {
   message(funk)
   try(source(funk))
 }
 
-# TMB FUNCTIONS
-setwd(paste0(dir,"/ferizzlez"))
+# Set WD
+dir <- paste0("/homes/",Sys.info()['user'],"/tmb_transition")
+setwd(paste0(dir,"/mwe"))
 source('../utils.R')
 
 # draws for prediction
 
-# make a chunky mesh or use the original?
-message(paste0(commandArgs(),collapse=' ,'))
-max_edge <- 4
-ndraws <- 250
-ncores <- 10
-if(length(commandArgs()) > 4){
-  max_edge <-  as.numeric(commandArgs()[4])
-  ndraws   <- as.numeric(commandArgs()[5])
-  ncores   <- as.numeric(commandArgs()[6])
-}
-ndraws <- round(ndraws/ncores,0)*ncores # for parallelizing later
-message(sprintf('MAX EDGE: %s', max_edge))
-message(sprintf('NDRAWS  : %s', ndraws))
-message(sprintf('CORES   : %s', ncores))
-
+# set some fitting options
+max_edge <- 4     # mesh size
+ndraws   <- 200   # number of draws for prediction
+ncores   <- 4     # cores to fit on
 
 ####################################################
+####################################################
+### SET UP NECESSARY BEFORE RUNNING MODEL
+
 ## pull in data
-## LETS DO WSSA AGE BIN 2
-load('/share/geospatial/mbg/u5m/died/model_image_history/2017_04_04_22_07_02_bin2_wssa_0NA.RData')
+## load in the data (TODO SAVE THIS IN REPO AS WELL)
+df <- fread('/homes/royburst/tmb_mwe/tmb_mwe_df.csv') # main data for fitting
+simple_polygon <- readRDS('/homes/royburst/tmb_mwe/shapefile.RDS') # shapefile
+cov_list <- readRDS('/homes/royburst/tmb_mwe/cov_rasters.RDS') # shapefile
+#load('/share/geospatial/mbg/u5m/died/model_image_history/2017_04_04_22_07_02_bin2_wssa_0NA.RData')
 
-# sort out the data a bit
-modnames      <-  c('gam','gbm','ridge','enet','lasso')
-child_fit_on  <-  '_cv_pred'
-df            <-  rbind(df[,paste0(modnames) := lapply(modnames, function(x) get(paste0(x,child_fit_on)))])
-df <- df[,c('N','died',modnames,'rates','period_id','latitude','longitude','weight'),with=FALSE]
+# fixed effects for the model
+covs      <-  c('gam','gbm','lasso')
 
-# na omit stuff
-nrow(df)
-df <- na.omit(df)
-nrow(df)
-
-#### Make objects needed for TMB to run
+#### Make objects needed for TMB
 coords   <- cbind(df$longitude,df$latitude)
 
 # make model frame, include rates as a covariate
-X_xp = as.matrix(cbind(1, df[,c(modnames,'rates'),with=FALSE]))
+X_xp = as.matrix(cbind(1, df[,c(covs),with=FALSE]))
 
-# try with a different mesh (too dense before?)
-  mesh_orig <- list(s=mesh_s,t=mesh_t)
-  simple_polygon_list <-  load_simple_polygon(gaul_list        = get_gaul_codes('wssa'),
-                                                buffer            = 0.4)
-  simple_polygon   <- simple_polygon_list[[2]]
-  mesh_s <- build_space_mesh(d = df,
-                             simple = simple_polygon,
-                             max_edge = max_edge,
-                             mesh_offset = 2)
+# construct the mesh and plot a picture of it
+mesh_s <- inla.mesh.2d(
+  boundary = inla.sp2segment(simple_polygon),
+  loc      = cbind(df$longitude,df$latitude),
+  max.edge = max_edge,
+  offset   = 2,
+  cutoff   = max_edge)
+plot(mesh_s,asp=1);points(df$longitude,df$latitude,col=df$fyear)
 
-
+# constuct a projection matrix from data to mesh nodes. used for prediction
 A.proj <- inla.spde.make.A(mesh  = mesh_s,
                            loc   = coords,
                            group = df$period_id)
 
-
 # n periods
 nperiods <- length(unique(df$period_id))
 
-# make SPDE matrices
-spde <- inla.spde2.matern( mesh_s,alpha=2 ) ## Build SPDE object using INLA (must pass mesh$idx$loc when supplying Boundary)
+# make SPDE matrices which we use in our likelihood functoin
+spde <- inla.spde2.matern(mesh_s,alpha=2 ) ## Build SPDE object using INLA (must pass mesh$idx$loc when supplying Boundary)
 
 
-# use one of the covariate layers as a 'fullsamplespace',
-# DOING IT TWICE TO MAKE FAIRER TIME COMPARISON
+# use one of the covariate layers as a 'fullsamplespace', basically used as the template for prediction
 f_orig <- data.table(cbind(coordinates(cov_list[[1]][[1]]),t=1))
 # add time periods
 fullsamplespace <- copy(f_orig)
@@ -137,13 +121,13 @@ for(p in 1:nperiods){
 pcoords <- cbind(x=fullsamplespace$x, y=fullsamplespace$y)
 groups_periods <- fullsamplespace$t
 
-## use inla helper functions to project the spatial effect.
+## use inla helper functions to project the spatial effect, from mesh nodes to prediction template
 A.pred <- inla.spde.make.A(
-    mesh = mesh_s,
-    loc = pcoords,
+    mesh  = mesh_s,
+    loc   = pcoords,
     group = groups_periods)
 
-## extract cell values  from covariates, deal with timevarying covariates here
+## extract cell values  from covariates
 cov_vals <- list()
 for(p in 1:nperiods){
   message(p)
@@ -151,46 +135,45 @@ for(p in 1:nperiods){
   cov_vals[[p]] <- (cbind(int = 1, cov_vals[[p]]))
 }
 
-
-
-Data = list(num_i=nrow(df),                 ## Total number of observations
-            num_s=mesh_s$n,                 ## Number of vertices in SPDE mesh
-            num_t=nperiods,                  ## Number of periods
-            num_z=1,
+# Data list passed on to TMB
+Data = list(num_i=nrow(df),               ## Total number of observations
+            num_s=mesh_s$n,               ## Number of vertices in SPDE mesh
+            num_t=nperiods,               ## Number of periods
+            num_z=1,                      ## Z dimension, set to 1 for simplicity for now
             y_i=df$died,                  ## Number of observed deaths in the cluster (N+ in binomial likelihood)
-            n_i=df$N,               ## Number of observed exposures in the cluster (N in binomial likelihood)
-            t_i=df$period_id-1,                ## Sample period ( starting at zero )
-            w_i=df$weight,
-            X_ij=X_xp,                      ## Covariate design matrix
-            M0=spde$param.inla$M0,          ## SPDE sparse matrix
-            M1=spde$param.inla$M1,          ## SPDE sparse matrix
-            M2=spde$param.inla$M2,          ## SPDE sparse matrix
-            Aproj = A.proj,                 ## mesh to prediction point projection matrix
-            options = c(1,1))                 ## option1==1 use priors
-                                              ## option2==1 ADREPORT off
+            n_i=df$N,                     ## Number of observed exposures in the cluster (N in binomial likelihood)
+            t_i=df$period_id-1,           ## Sample period ( starting at zero )
+            w_i=df$weight,                ## Row wise data rate
+            X_ij=X_xp,                    ## Covariate design matrix
+            M0=spde$param.inla$M0,        ## SPDE sparse matrix
+            M1=spde$param.inla$M1,        ## SPDE sparse matrix
+            M2=spde$param.inla$M2,        ## SPDE sparse matrix
+            Aproj = A.proj,               ## mesh to prediction point projection matrix
+            options = c(1,1))             ## option1==1 use priors
+                                          ## option2==1 ADREPORT off
 
-  ## staring values for parameters
-  Parameters = list(alpha_j   =  rep(0,ncol(X_xp)),                 ## FE parameters alphas
-                    logtau=1.0,                                     ## log inverse of tau  (Epsilon)
-                    logkappa=0.0,	                                  ## Matern Range parameter
-                    trho=0.5,
-                    zrho=0.5,
-                    Epsilon_stz=matrix(1, nrow=mesh_s$n, ncol=nperiods))     ## GP locations
+## starting values for parameters
+Parameters = list(alpha_j   = rep(0,ncol(X_xp)),  ## FE parameters alphas
+                  logtau    = 1.0,                ## log inverse of tau, variance of GP
+                  logkappa  = 0.0,	              ## Matern kappa
+                  trho      = 0.5,                ## temporal AR1 rho
+                  zrho      = 0.5,                ## ag eAR1 rho, ignored for now
+                  Epsilon_stz=matrix(1, nrow=mesh_s$n, ncol=nperiods)) ## GP locations
+#########################################
+
 
 
 #########################################
 #########################################
 ####  fit using TMB
-system(paste0('cd ',dir,'\ngit pull origin develop'))
-
 templ <- "model"
 TMB::compile(paste0(templ,".cpp"))
 dyn.load( dynlib(templ) )
 openmp(ncores)
-#config(tape.parallel=0, DLL=templ)
+config(tape.parallel=0, DLL=templ)
 
-obj <- MakeADFun(data=Data, parameters=Parameters,  map=list(zrho=factor(NA)), random="Epsilon_stz", hessian=TRUE, DLL=templ)
-
+# Run AD
+obj <- MakeADFun(data=Data, parameters=Parameters, map=list(zrho=factor(NA)), random="Epsilon_stz", hessian=TRUE, DLL=templ)
 
 ## Run optimizer
 ptm <- proc.time()[3]
@@ -202,92 +185,96 @@ fit_time_tmb <- proc.time()[3] - ptm
 
 #########################################
 
-#########################################
-#########################################
-##### Make predictions with TMB
 
-# Get standard errors
-## Report0 = obj$report()
+
+
+#########################################
+#########################################
+##### Make predictions with TMB model output
+
+# Get precision matrix
 ptm <- proc.time()[3]
-SD0 = TMB::sdreport(obj,getJointPrecision=TRUE)
+SD0 <- TMB::sdreport(obj, getJointPrecision=TRUE)
 tmb_sdreport_time <- proc.time()[3] - ptm
 
 ##### Prediction
 message('making predictions')
 mu    <- c(SD0$par.fixed,SD0$par.random)
 
-### simulate draws
+### simulate draws from the precision matrix
+rmvnorm_prec <- function(mu, prec, n.sims) {
+  z     <- matrix(rnorm(length(mu) * n.sims), ncol=n.sims)
+  L_inv <- Cholesky(prec)
+  mu + solve(as(L_inv, "pMatrix"), solve(t(as(L_inv, "Matrix")), z))
+}
 ptm2 <- proc.time()[3]
 draws <- do.call('cbind',
           mclapply(rep(ndraws/ncores,ncores), rmvnorm_prec, mu = mu , prec = SD0$jointPrecision, mc.cores = ncores))
 tmb_get_draws_time <- proc.time()[3] - ptm2
 
-## separate out the draws
-parnames <- c(names(SD0$par.fixed), names(SD0$par.random))
+## separate out the draws by random and fixed effects
+parnames      <- c(names(SD0$par.fixed), names(SD0$par.random))
 epsilon_draws <- draws[parnames=='Epsilon_stz',]
 alpha_draws   <- draws[parnames=='alpha_j',]
 
-## values of S at each cell (long by nperiods)
+## Use the pred matrix to get RE values at each cell ( long by nperiods)
 cell_s <- as.matrix(A.pred %*% epsilon_draws)
 
 # covariate values by alpha draws
 tmb_vals <- list()
 for(p in 1:nperiods)  tmb_vals[[p]] <- cov_vals[[p]] %*% alpha_draws
 
+# fixed effects by cell
 cell_l <- do.call(rbind,tmb_vals)
 
-## add together linear and st components
+## add together FE and GP components
 pred_tmb <- cell_l + cell_s
 
 # save prediction timing
 totalpredict_time_tmb <- proc.time()[3] - ptm
 
 
+
+
 #########################################
 #########################################
 #### fit using INLA
-A <- inla.spde.make.A(
-  mesh = mesh_s,
-  loc = coords,
-  group = df$period_id
-)
-nperiod <- length(unique(df$period_id))
+
+# same basic inla setup stuff
 space   <- inla.spde.make.index("space",
                                 n.spde = spde$n.spde,
-                                n.group = nperiod)
+                                n.group = nperiods)
 
-inla.covs <- c(modnames, 'rates') ## add in malaria rates
-design_matrix <- data.frame(int = 1, df[, inla.covs, with=F])
-stack.obs <- inla.stack(tag='est',
-                        data=list(died=df$died), ## response
-                        A=list(A,1), ## proj matrix, not sure what the 1 is for
-                        effects=list(
-                          space,
-                          design_matrix)
-                        )
+design_matrix <- data.frame(int = 1, df[, covs, with=F])
+stack.obs <- inla.stack(tag     = 'est',
+                        data    = list(died=df$died), ## response
+                        A       = list(A.proj,1),
+                        effects = list(space,  design_matrix))
 
 formula <- formula(paste0('died ~ -1+int+',
-(paste(inla.covs, collapse = ' + ')),
+(paste(covs, collapse = ' + ')),
 ' + f(space, model = spde, group = space.group, control.group = list(model = \'ar1\'))'))
 
+# set fitting time
 ptm <- proc.time()[3]
-
 inla.setOption("enable.inla.argument.weights", TRUE)
 res_fit <- inla(formula,
-                data = inla.stack.data(stack.obs),
-                control.predictor = list(A = inla.stack.A(stack.obs),
-                                         link = 1,
+                data              = inla.stack.data(stack.obs),
+                control.predictor = list(A       = inla.stack.A(stack.obs),
+                                         link    = 1,
                                          compute = FALSE),
-                control.fixed = list(expand.factor.strategy = 'inla'),
-                control.inla = list(int.strategy = 'eb', h = 1e-3, tolerance = 1e-6),
-                control.compute=list(config = TRUE),
-                family = 'binomial',
-                num.threads = ncores,
-                Ntrials = df$N,
-                weights = df$weight,
-                verbose = TRUE,
-                keep = FALSE)
+                control.fixed   = list(expand.factor.strategy = 'inla'),
+                control.inla    = list(int.strategy = 'eb', h = 1e-3, tolerance = 1e-6),
+                control.compute = list(config = TRUE),
+                family          = 'binomial',
+                num.threads     = ncores,
+                Ntrials         = df$N,
+                weights         = df$weight,
+                verbose         = TRUE,
+                keep            = FALSE)
 fit_time_inla <- proc.time()[3] - ptm
+
+
 
 
 #########################################
@@ -300,7 +287,7 @@ inla_get_draws_time <- proc.time()[3] - ptm
 ## get parameter names
 par_names <- rownames(draws[[1]]$latent)
 
-## index to spatial field and linear coefficient samples
+## index to spatial field and fixed coefficient samples
 s_idx <- grep('^space.*', par_names)
 l_idx <- which(!c(1:length(par_names)) %in% grep('^space.*|Predictor', par_names))
 
@@ -309,20 +296,20 @@ pred_s <- sapply(draws, function (x) x$latent[s_idx])
 pred_l <- sapply(draws, function (x) x$latent[l_idx])
 rownames(pred_l) <- res_fit$names.fixed
 
-
-## get samples of s for all coo locations
+## get samples of RE for all coo locations
 s <- as.matrix(A.pred %*% pred_s)
 
 ## extract cell values  from covariates, deal with timevarying covariates here
 inla_vals <- list()
 for(p in 1:nperiods)  inla_vals[[p]] <- cov_vals[[p]] %*% pred_l
 
+# fixed effects by cell
 l <- do.call(rbind,inla_vals)
 
+## add together FE and GP components
 pred_inla <- s+l
 
-## make them into time bins
-len = nrow(pred_inla)/nperiod
+##
 totalpredict_time_inla <- proc.time()[3] - ptm
 
 
@@ -330,7 +317,8 @@ totalpredict_time_inla <- proc.time()[3] - ptm
 
 ###########################################################
 ###########################################################
-## MAKE COMPARISONS
+## OPTIONAL MAKE COMPARISONS PLOTS
+len <- nrow(pred_inla)/nperiod
 
 # make some useful files first
 summ_inla <- cbind(median=(apply(pred_inla,1,median)),sd=(apply(pred_inla,1,sd)))
@@ -341,10 +329,7 @@ ras_med_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,1]), t=rep
 ras_sdv_inla  <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_inla[,2]), t=rep(1:nperiods,each=nrow(pred_inla)/nperiods)),"p","t")
 ras_sdv_tmb   <- rasterFromXYZT(data.table(pcoords,p=plogis(summ_tmb[,2]), t=rep(1:nperiods,each=nrow(pred_tmb)/nperiods)),"p","t")
 
-
-
 pdf(sprintf('/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/test_%sdegree_mesh_withspeedups2.pdf',as.character(max_edge)), height=10,width=14)
-
 
 
 ####
@@ -483,5 +468,3 @@ ggplot(plot_d, aes(i, tmb_median, col=i)) + theme_bw() + # [seq(1, nrow(plot_d),
 
 
 dev.off()
-
-#write.csv(res,'/share/geospatial/royburst/sandbox/tmb/inla_compare_real_data/tmb_inla_compare_real_data.csv')
