@@ -74,6 +74,7 @@ if(grepl("geos", Sys.info()[4])) INLA:::inla.dynload.workaround()
 ## -------------------------------------------------------------------------------------
 ## Load the data
 df <- fread(sprintf('%s/tmb_mwe_df.csv',datadir)) # main data for fitting
+df[, died := round(died,1)] # clean it up for this test (no nonints in binomial k)
 simple_polygon <- readRDS(sprintf('%s/shapefile.RDS',datadir)) # shapefile
 cov_list <- readRDS(sprintf('%s/cov_rasters.RDS',datadir)) # list of raster covariates
 
