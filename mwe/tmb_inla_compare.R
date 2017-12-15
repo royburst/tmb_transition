@@ -174,6 +174,7 @@ config(tape.parallel=0, DLL=templ)
 
 # Run AD
 obj <- MakeADFun(data=Data, parameters=Parameters, map=list(zrho=factor(NA)), random="Epsilon_stz", hessian=TRUE, DLL=templ)
+runSymbolicAnalysis(obj)
 
 ## Run optimizer
 ptm <- proc.time()[3]
