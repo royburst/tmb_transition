@@ -17,6 +17,7 @@
 ##    8. Make and save in code directory a table and plot of comparisons
 ## -------------------------------------------------------------------------------------
 ## -------------------------------------------------------------------------------------
+### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/mwe/tmb_inla_compare.R --no-save --args .25 100 20
 
 
 ## -------------------------------------------------------------------------------------
@@ -36,13 +37,13 @@ datadir <- '/homes/royburst/tmb_mwe/'
 ## B. set some fitting options: scaling these is what affects run time the most
 # Decimal Degrees of max edge for finite elements mesh
 #  generally the smaller the better with 0.25 or smaller as max size for anything publishable
-max_edge <- 4
+max_edge <- 0.25
 
 # Number of draws to take for prediction. Test on 100, with 1000 as minimum for anything publishable
 ndraws   <- 200
 
 # Number of cores for parallelization. Make sure you've set it such that ndraws/ncores is an integer.
-ncores   <- 4
+ncores   <- 10
 ## -------------------------------------------------------------------------------------
 
 
