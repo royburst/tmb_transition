@@ -140,16 +140,16 @@ Type objective_function<Type>::operator() ()
   // Possibilities of Kronecker include: S, ST, SZ, and STZ
   if (num_t == 1 & num_z == 1)  {
     printf("GP FOR SPACE  ONLY \n");
-    PARALLEL_REGION jnll += GMRF(Q_ss)(epsilon_stz);
+    PARALLEL_REGION jnll += GMRF(Q_ss,false)(epsilon_stz);
   } else if(num_t > 1 & num_z == 1) {
     printf("GP FOR SPACE-TIME \n");
-    PARALLEL_REGION jnll += SEPARABLE(AR1(trho),GMRF(Q_ss))(Epsilon_stz);
+    PARALLEL_REGION jnll += SEPARABLE(AR1(trho),GMRF(Q_ss,false))(Epsilon_stz);
   } else if (num_t == 1 & num_z > 1) {
     printf("GP FOR SPACE-Z \n");
-    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),GMRF(Q_ss))(Epsilon_stz);
+    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),GMRF(Q_ss,false))(Epsilon_stz);
   } else if (num_t > 1 & num_z > 1) {
     printf("GP FOR SPACE-TIME-Z \n");
-    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),SEPARABLE(AR1(trho),GMRF(Q_ss)))(Epsilon_stz);
+    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),SEPARABLE(AR1(trho),GMRF(Q_ss,false)))(Epsilon_stz);
   }
 
   // Transform GMRFs and make vector form
