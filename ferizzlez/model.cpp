@@ -105,7 +105,7 @@ Type objective_function<Type>::operator() ()
   // max_parallel_regions = omp_get_max_threads();
   // printf("This is thread %d\n", max_parallel_regions);
   max_parallel_regions = 5;
-  
+
   // Make spatial precision matrix
   SparseMatrix<Type> Q_ss = spde_Q(logkappa, logtau, M0, M1, M2);
   printf("Q_ss size: %d \n", Q_ss.size());
@@ -141,16 +141,16 @@ Type objective_function<Type>::operator() ()
   // Possibilities of Kronecker include: S, ST, SZ, and STZ
   if (num_t == 1 & num_z == 1)  {
     printf("GP FOR SPACE  ONLY \n");
-    PARALLEL_REGION jnll += GMRF(Q_ss,false)(epsilon_stz);
+    PARALLEL_REGION jnll += GMRF(Q_ss)(epsilon_stz);
   } else if(num_t > 1 & num_z == 1) {
     printf("GP FOR SPACE-TIME \n");
-    PARALLEL_REGION jnll += SEPARABLE(AR1(trho),GMRF(Q_ss,false))(Epsilon_stz);
+    PARALLEL_REGION jnll += SEPARABLE(AR1(trho),GMRF(Q_ss))(Epsilon_stz);
   } else if (num_t == 1 & num_z > 1) {
     printf("GP FOR SPACE-Z \n");
-    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),GMRF(Q_ss,false))(Epsilon_stz);
+    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),GMRF(Q_ss))(Epsilon_stz);
   } else if (num_t > 1 & num_z > 1) {
     printf("GP FOR SPACE-TIME-Z \n");
-    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),SEPARABLE(AR1(trho),GMRF(Q_ss,false)))(Epsilon_stz);
+    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),SEPARABLE(AR1(trho),GMRF(Q_ss)))(Epsilon_stz);
   }
 
   // Transform GMRFs and make vector form
