@@ -54,6 +54,7 @@ Type objective_function<Type>::operator() ()
   // ////////////////////////////////////////////////////////////////////////////
   // INPUTS
   // ////////////////////////////////////////////////////////////////////////////
+  DATA_INTEGER(flag); // flag=0 => only prior
 
   // Indices
   DATA_INTEGER(num_i);       // number of datapts in space-time-Z (aka STZ)
@@ -141,16 +142,16 @@ Type objective_function<Type>::operator() ()
   // Possibilities of Kronecker include: S, ST, SZ, and STZ
   if (num_t == 1 & num_z == 1)  {
     printf("GP FOR SPACE  ONLY \n");
-    PARALLEL_REGION jnll += GMRF(Q_ss)(epsilon_stz);
+    PARALLEL_REGION jnll += GMRF(Q_ss,false)(epsilon_stz);
   } else if(num_t > 1 & num_z == 1) {
     printf("GP FOR SPACE-TIME \n");
-    PARALLEL_REGION jnll += SEPARABLE(AR1(trho),GMRF(Q_ss))(Epsilon_stz);
+    PARALLEL_REGION jnll += SEPARABLE(AR1(trho),GMRF(Q_ss,false))(Epsilon_stz);
   } else if (num_t == 1 & num_z > 1) {
     printf("GP FOR SPACE-Z \n");
-    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),GMRF(Q_ss))(Epsilon_stz);
+    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),GMRF(Q_ss,false))(Epsilon_stz);
   } else if (num_t > 1 & num_z > 1) {
     printf("GP FOR SPACE-TIME-Z \n");
-    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),SEPARABLE(AR1(trho),GMRF(Q_ss)))(Epsilon_stz);
+    PARALLEL_REGION jnll += SEPARABLE(AR1(zrho),SEPARABLE(AR1(trho),GMRF(Q_ss,false)))(Epsilon_stz);
   }
 
   // Transform GMRFs and make vector form
@@ -173,6 +174,9 @@ Type objective_function<Type>::operator() ()
 
   // evaluate fixed effects for alpha_j values
   fe_i = X_ij * alpha_j.matrix();
+
+  // Return un-normalized density on request
+  if (flag == 0) return jnll;
 
   // Likelihood contribution from each datapoint i
   for (int i = 0; i < num_i; i++){

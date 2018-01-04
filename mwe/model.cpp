@@ -1,6 +1,6 @@
 // ///////////////////////////////////////////////////
 // Roy Burstein and Aaron Osgood-Zimmerman
-// August 2017
+// 2017
 // Template file for space-time-Z GPR model.
 // Used for fitting IHME Geospatial MBG models
 // ///////////////////////////////////////////////////
@@ -98,7 +98,8 @@ Type objective_function<Type>::operator() ()
 
   // Define the joint-negative log-likelihood as a parallel_accumulator
   // this allows us to add or subtract numbers to the object in parallel
-  // parallel_accumulator<Type> jnll(this);
+  // parallel_accumulator<Type> jnll(this); 
+  // NOTE: COMMENTED OUT parallel_accumulator AND USING PARALLEL_REGIONS INSTEAD
   Type jnll = 0;
 
   // print parallel info

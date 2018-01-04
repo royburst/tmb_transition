@@ -5,26 +5,24 @@
 # export MKL_INTERFACE_LAYER=GNU,LP64
 # export MKL_THREADING_LAYER=GNU
 # export OMP_NUM_THREADS=25
-# numactl --physcpubind=+0-9
 # /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R
-# OR JUST IN my basrc i have R_MKL $numcores
 
 # OR JUST RUN THE SCRIPT:
- ### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/ferizzlez/real_data_tmb_inla_compare.R --no-save --args .25 100 20
-
+ ### SINGULARITYENV_OMP_NUM_THREADS=10 /share/local/singularity-2.4.2/bin/singularity run --cleanenv /share/singularity-images/lbd/test_deploy/r_pkgs3.4.3gcc7mkl.simg /usr/local/bin/R
 
 ############### SETUP
 rm(list=ls())
 gc()
 options(scipen=999)
-.libPaths('/home/j/temp/geospatial/geos_packages')
+##.libPaths('/home/j/temp/geospatial/geos_packages')
 ##.libPaths('/home/j/temp/geospatial/packages')
 
 
 library(INLA)
 if(grepl("geos", Sys.info()[4])) INLA:::inla.dynload.workaround()
-require('TMB', lib.loc='/snfs2/HOME/azimmer/R/x86_64-pc-linux-gnu-library/3.3/') # COMPILED WITH METIS
-require('mvnfast',lib.loc='/home/j/temp/geospatial/sandbox_packages/')
+#require('TMB', lib.loc='/homes/royburst/RPACKS')
+#require('TMB', lib.loc='/snfs2/HOME/azimmer/R/x86_64-pc-linux-gnu-library/3.3/') # COMPILED WITH METIS
+library(TMB)
 library(data.table)
 library(RandomFields)
 library(raster)
@@ -189,7 +187,9 @@ dyn.load( dynlib(templ) )
 openmp(ncores)
 #config(tape.parallel=0, DLL=templ)
 
+Data$flag <- 1
 obj <- MakeADFun(data=Data, parameters=Parameters,  map=list(zrho=factor(NA)), random="Epsilon_stz", hessian=TRUE, DLL=templ)
+obj <- normalize(obj, flag="flag")
 
 
 ## Run optimizer
@@ -218,8 +218,15 @@ mu    <- c(SD0$par.fixed,SD0$par.random)
 
 ### simulate draws
 ptm2 <- proc.time()[3]
-draws <- do.call('cbind',
-          mclapply(rep(ndraws/ncores,ncores), rmvnorm_prec, mu = mu , prec = SD0$jointPrecision, mc.cores = ncores))
+rmvnorm_prec <- function(mu, prec, n.sims) {
+  z <- matrix(rnorm(length(mu) * n.sims), ncol=n.sims)
+  L <- Cholesky(prec, super=TRUE)
+  z <- solve(L, z, system = "Lt") ## z = Lt^-1 %*% z
+  z <- solve(L, z, system = "Pt") ## z = Pt    %*% z
+  z <- as.matrix(z)
+  mu + z
+}
+draws <- rmvnorm_prec(mu = mu , prec = SD0$jointPrecision, n.sims = ndraws)
 tmb_get_draws_time <- proc.time()[3] - ptm2
 
 ## separate out the draws

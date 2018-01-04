@@ -6,6 +6,10 @@
 ## Instructions:
 ##    Set the variables needed at the top, the rest of the script should run
 ##    and save a table comparing run times and parameter estimates from INLA and TMB
+## Requirements:
+##    R Packages: INLA, TMB, data.table, parallel, raster
+##    Data:       tmb_mwe_df.csv, shapefile.RDS, cov_rasters.RDS 
+##    Code:       model.cpp
 ## This script does the following:
 ##    1. Input user settings
 ##    2. Load Packages
@@ -17,7 +21,6 @@
 ##    8. Make and save in code directory a table and plot of comparisons
 ## -------------------------------------------------------------------------------------
 ## -------------------------------------------------------------------------------------
-### /homes/imdavis/R_mkl_geos/R-3.4.1-mkl_gcc484/R-3.4.1/bin/R < /homes/royburst/tmb_transition/mwe/tmb_inla_compare.R --no-save --args .25 100 20
 
 
 ## -------------------------------------------------------------------------------------
@@ -59,11 +62,11 @@ for(pack in c('INLA','TMB','data.table','parallel','raster'))
 # set working directory
 setwd(codedir)
 
-# scipen
+# disable scientific notation 
 options(scipen=999)
 
 # patch fix for inla mesher, if needed
-if(grepl("geos", Sys.info()[4])) INLA:::inla.dynload.workaround()
+INLA:::inla.dynload.workaround()
 ## -------------------------------------------------------------------------------------
 
 
@@ -110,7 +113,7 @@ nperiods <- length(unique(df$period_id))
 spde <- inla.spde2.matern(mesh_s,alpha=2 )
 
 # use one of the covariate layers as a 'fullsamplespace' dt, one row per pixel
-#  basically used as the template for prediction
+#  basically used as the template for prediction, which we do as a dt rather than a raster
 f_orig <- data.table(cbind(coordinates(cov_list[[1]][[1]]),t=1))
 fullsamplespace <- copy(f_orig)
 for(p in 2:nperiods){
@@ -158,9 +161,9 @@ Data = list(num_i=nrow(df),               ## Total number of observations
             t_i=df$period_id-1,           ## Sample period ( starting at zero )
             w_i=df$weight,                ## Row wise data rate
             X_ij=X_xp,                    ## Covariate design matrix
-            M0=spde$param.inla$M0,        ## SPDE sparse matrix
-            M1=spde$param.inla$M1,        ## SPDE sparse matrix
-            M2=spde$param.inla$M2,        ## SPDE sparse matrix
+            M0=spde$param.inla$M0,        ## SPDE sparse matrix M0
+            M1=spde$param.inla$M1,        ## SPDE sparse matrix M1
+            M2=spde$param.inla$M2,        ## SPDE sparse matrix M2
             Aproj = A.proj,               ## mesh to prediction point projection matrix
             options = c(1,1))             ## option1==1 use priors
                                           ## option2==1 turn ADREPORT off
@@ -170,7 +173,7 @@ Parameters = list(alpha_j   = rep(0,ncol(X_xp)),  ## FE parameters alphas
                   logtau    = 1.0,                ## log inverse of tau, variance of GP
                   logkappa  = 0.0,	              ## Matern kappa
                   trho      = 0.5,                ## temporal AR1 rho
-                  zrho      = 0.5,                ## Z AR1 rho, will be mapped out ignored for now since not using this dimension
+                  zrho      = 0.5,                ## Z AR1 rho, will be mapped out ignored for now since not using this dimension, but plan to build it in later 
                   Epsilon_stz=matrix(1, nrow=mesh_s$n, ncol=nperiods)) ## GP locations
 
 ## -------------------------------------------------------------------------------------
@@ -340,6 +343,7 @@ totalpredict_time_inla <- proc.time()[3] - ptm
 ## -------------------------------------------------------------------------------------
 ### 8. MAKE AND SAVE COMPARISON METRICS AND PLOTS
 ## -------------------------------------------------------------------------------------
+## -------------------
 ## A. Comparison Table
 res <- data.table(st_mesh_nodes    =rep(nrow(epsilon_draws),2)) # number of mesh nodes
 # some info on user options
@@ -378,7 +382,7 @@ rr$diff   <- rr[,2]-rr[,3]
 write.csv(rr,sprintf('%s/tmb_inla_comparison_metrics.csv',datadir))
 
 
-## -----------------------------------------
+## -------------------
 ## B. Plot predictions
 ## Helper function for turning an xyzt table into a raster
 rasterFromXYZT <- function(table,z,t){
